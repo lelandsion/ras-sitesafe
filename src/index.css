@@ -3,6 +3,7 @@
 :root {
   /* Official RAS palette — rasltd.ca Squarespace site.css + logo sample */
   --ras-primary: #045339; /* --accent-hsl: 160.25, 90.8%, 17.06% */
+  --ras-green: #045339; /* alias used by report / aggregate UI */
   --ras-primary-deep: #033d2a;
   --ras-secondary: #0d553a; /* dominant green from RAS Logo_Updated May 2023 RGB */
   --ras-surface: #f7f7f7; /* --lightAccent-hsl: 0, 0%, 96.86% */
