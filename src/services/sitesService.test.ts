@@ -7,11 +7,12 @@ vi.mock('../lib/supabase', () => ({
 }))
 
 describe('humanizeDbError', () => {
-  it('explains missing schema / PGRST205', () => {
+  it('explains missing schema / PGRST205 without developer setup steps', () => {
     expect(humanizeDbError('PGRST205 Could not find the table')).toMatch(
-      /SQL migration/i,
+      /temporarily unavailable/i,
     )
-    expect(humanizeDbError('schema cache miss')).toMatch(/migration/i)
+    expect(humanizeDbError('schema cache miss')).toMatch(/unavailable|admin/i)
+    expect(humanizeDbError('PGRST205')).not.toMatch(/SQL|migration|\.sql/i)
   })
 
   it('explains auth / JWT failures', () => {

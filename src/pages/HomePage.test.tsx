@@ -33,5 +33,11 @@ describe('HomePage', () => {
       '#how-it-works',
     )
     expect(document.getElementById('how-it-works')).toBeTruthy()
+
+    const main = screen.getByRole('main')
+    expect(main).toHaveTextContent(/Daily Safety Check/i)
+    expect(main).toHaveTextContent(/File a daily check/i)
+    expect(main).toHaveTextContent(/Review and report/i)
+    expect(main).not.toHaveTextContent(/SQL|Parts?\s*1|migration|seed|\.env|ras_jobsites/i)
   })
 })

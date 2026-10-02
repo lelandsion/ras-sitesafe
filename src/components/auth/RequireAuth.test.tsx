@@ -16,7 +16,8 @@ describe('RequireAuth', () => {
         </Route>
       </AuthRoutes>,
     )
-    expect(screen.getByRole('alert')).toHaveTextContent(/until Supabase is configured/i)
+    expect(screen.getByRole('alert')).toHaveTextContent(/Sign-in unavailable/i)
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/SQL|migration|\.env/i)
     expect(screen.queryByText('Admin secret')).not.toBeInTheDocument()
   })
 
@@ -62,7 +63,10 @@ describe('RequireAuth', () => {
         </Route>
       </AuthRoutes>,
     )
-    expect(screen.getByRole('alert')).toHaveTextContent(/No profile row/i)
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /not set up for SiteSafe|Ask an admin/i,
+    )
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/SQL|migration|seed/i)
     expect(screen.queryByText('Framer secret')).not.toBeInTheDocument()
   })
 

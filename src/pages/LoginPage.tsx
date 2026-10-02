@@ -60,14 +60,14 @@ export function LoginPage() {
             <span>SiteSafe access</span>
           </h2>
           <p className="login__lead">
-            Sign in with your SiteSafe account. Access follows your role in{' '}
-            <code>profiles.role</code> (admin or framer).
+            Sign in with your SiteSafe company account. Admins land on the
+            dashboard; framers go to field safety checks.
           </p>
 
           {!envReady && (
             <p className="login__banner login__banner--warn" role="alert">
-              Missing <code>VITE_SUPABASE_*</code> in <code>.env.local</code>. Copy{' '}
-              <code>.env.example</code> and restart the dev server.
+              Sign-in is temporarily unavailable. Contact your SiteSafe admin if
+              this continues.
             </p>
           )}
 
@@ -117,7 +117,7 @@ export function LoginPage() {
 
           <p className="login__hint">
             Accounts are provisioned by an admin — there is no public sign-up.
-            Test credentials live in the project README.
+            For the assessment demo, use the credentials in the project README.
           </p>
         </section>
       </main>

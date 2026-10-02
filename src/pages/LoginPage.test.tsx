@@ -76,6 +76,16 @@ describe('LoginPage', () => {
     expect(screen.queryByPlaceholderText(/ras-sitesafe-demo/i)).not.toBeInTheDocument()
   })
 
+  it('uses user-facing copy without developer setup steps', () => {
+    renderLogin()
+    const main = screen.getByRole('main')
+    expect(main).toHaveTextContent(/company account/i)
+    expect(main).toHaveTextContent(/README/i)
+    expect(main).not.toHaveTextContent(
+      /SQL|migration|\.env|profiles\.role|VITE_SUPABASE|seed/i,
+    )
+  })
+
   it('requires email and password via native constraints', () => {
     renderLogin()
     expect(screen.getByLabelText(/^Email$/i)).toBeRequired()

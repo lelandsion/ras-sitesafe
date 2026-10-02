@@ -396,18 +396,14 @@ export function SafetyFormPage({
             <p className="form-banner form-banner--warn" role="status">
               {isAdmin ? (
                 <>
-                  No active jobsites yet. Admins see every site in{' '}
-                  <code>sites</code> (assignments not required). Create sites
-                  under{' '}
-                  <Link to="/admin/sites">Admin → Sites</Link>, or run{' '}
-                  <code>supabase/seed/ras_jobsites.sql</code>.
+                  No active jobsites yet. Create one under{' '}
+                  <Link to="/admin/sites">Admin → Sites</Link>, then return here
+                  to file a check.
                 </>
               ) : (
                 <>
-                  No assigned jobsites yet. Ask an admin to assign you on Sites,
-                  or re-run <code>supabase/seed/ras_jobsites.sql</code> after
-                  Auth user <code>framer@ras-sitesafe-demo.com</code> exists
-                  (sites alone are not enough for framers).
+                  No assigned jobsites yet. Ask an admin to assign you on{' '}
+                  <strong>Sites</strong>, then refresh this page.
                 </>
               )}
             </p>

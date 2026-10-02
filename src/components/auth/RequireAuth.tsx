@@ -18,9 +18,7 @@ export function RequireAuth({ role }: { role?: UserRole }) {
   const location = useLocation()
 
   if (!supabaseConfigured) {
-    return (
-      <SupabaseConfigNotice title="Sign-in unavailable until Supabase is configured" />
-    )
+    return <SupabaseConfigNotice title="Sign-in unavailable" />
   }
 
   if (loading) {
@@ -35,8 +33,8 @@ export function RequireAuth({ role }: { role?: UserRole }) {
     return (
       <div className="auth-loading" role="alert">
         <p>
-          No profile row for this user. Apply the SQL migration and seed demo users
-          (see docs/supabase-seed-notes.md).
+          Your account is signed in but not set up for SiteSafe yet. Ask an admin
+          to finish provisioning your profile, then sign in again.
         </p>
         <button
           type="button"

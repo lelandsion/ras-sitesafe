@@ -44,7 +44,8 @@ function buildStoragePath(
   return `${userId}/${submissionId}/${stamp}-${safeBase || 'photo'}.${ext}`
 }
 
-function isMissingPhotoKindColumn(message: string): boolean {
+/** Exported for unit tests — detects missing photo_kind schema errors. */
+export function isMissingPhotoKindColumn(message: string): boolean {
   const m = message.toLowerCase()
   return (
     m.includes('photo_kind') ||
@@ -53,7 +54,8 @@ function isMissingPhotoKindColumn(message: string): boolean {
   )
 }
 
-function withDefaultPhotoKind(
+/** Exported for unit tests — legacy rows without photo_kind default to site. */
+export function withDefaultPhotoKind(
   rows: Array<Omit<SubmissionPhoto, 'photo_kind'> & { photo_kind?: SubmissionPhotoKind | null }>,
 ): SubmissionPhoto[] {
   return rows.map((row) => ({
@@ -103,7 +105,7 @@ export async function listSubmissionPhotos(
     return {
       data: [],
       error:
-        'Photo kind column is missing. Run Part 5 SQL (photo_kind) in Supabase, then refresh.',
+        'Photos could not be loaded. Try again later or contact your SiteSafe admin.',
     }
   }
 
@@ -177,7 +179,7 @@ export async function uploadSubmissionPhoto(params: {
       return {
         data: null,
         error:
-          'Hazard photos need the photo_kind column. Run Part 5 SQL in Supabase, then try again.',
+          'Hazard photo upload is temporarily unavailable. Try again later or contact your admin.',
       }
     }
 
@@ -199,7 +201,7 @@ export async function uploadSubmissionPhoto(params: {
         error:
           legacy.error?.message
             ? humanizeDbError(legacy.error.message)
-            : 'Upload failed. Run Part 5 SQL (photo_kind) if photos keep failing.',
+            : 'Photo upload failed. Try again later or contact your SiteSafe admin.',
       }
     }
 

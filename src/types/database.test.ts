@@ -4,6 +4,7 @@ import {
   PHOTO_ALLOWED_TYPES,
   PHOTO_BUCKET,
   PHOTO_MAX_BYTES,
+  SUBMISSION_PHOTO_KIND_LABELS,
   SUBMISSION_STATUS_LABELS,
 } from './database'
 
@@ -38,5 +39,12 @@ describe('photo constraint constants', () => {
     ])
     expect(PHOTO_MAX_BYTES).toBe(8 * 1024 * 1024)
     expect(PHOTO_BUCKET).toBe('submission-photos')
+  })
+
+  it('labels photo kinds for UI and PDF sections', () => {
+    expect(SUBMISSION_PHOTO_KIND_LABELS).toEqual({
+      site: 'Site photos',
+      hazard: 'Hazard photos',
+    })
   })
 })

@@ -197,7 +197,7 @@ export async function listFramersForAdmin(): Promise<{
       return {
         data: [],
         error:
-          'Framer search is not available yet. Apply supabase/migrations/20261002000200_admin_framer_directory.sql in Supabase, then refresh.',
+          'Worker search is temporarily unavailable. Try again later or contact your SiteSafe admin.',
       }
     }
     return { data: [], error: humanizeDbError(error.message) }
@@ -224,7 +224,7 @@ export function filterFramerDirectory(
 
 export function humanizeDbError(message: string): string {
   if (message.includes('PGRST205') || message.includes('schema cache')) {
-    return 'Database tables are not applied yet. Run the SQL migration in Supabase (docs/supabase-seed-notes.md), then refresh.'
+    return 'SiteSafe data is temporarily unavailable. Try again later or contact your admin.'
   }
   if (message.includes('JWT') || message.includes('not authenticated')) {
     return 'Session expired. Sign in again.'

@@ -54,9 +54,9 @@ export function HomePage() {
             </a>
           </div>
           <p className="hero__meta">
-            <strong>Daily Safety Check + admin dashboard.</strong> Apply Supabase SQL
-            (Parts 1–3), seed demo users, then sign in — framers file checklist reports
-            with photos; admins review, chart issues, and export PDFs.
+            <strong>Daily Safety Check + admin dashboard.</strong> Sign in with your
+            company account — framers file checklist reports with photos; admins
+            review, filter, run site reports, and export PDFs.
           </p>
         </section>
 
@@ -82,7 +82,10 @@ export function HomePage() {
               </div>
               <div className="how-it-works__copy">
                 <h3>Sign in</h3>
-                <p>Crew and admins use company accounts. Nothing is open to the public.</p>
+                <p>
+                  Use the company email your admin provisioned. There is no public
+                  sign-up — demo accounts are listed in the project README.
+                </p>
               </div>
             </li>
             <li className="how-it-works__step">
@@ -93,10 +96,10 @@ export function HomePage() {
                 <ClipboardCheck size={28} strokeWidth={2.25} />
               </div>
               <div className="how-it-works__copy">
-                <h3>Complete the safety form</h3>
+                <h3>File a daily check</h3>
                 <p>
-                  Framers fill the site checklist on their phone and attach jobsite
-                  photos before submitting.
+                  Framers pick an assigned jobsite, complete the checklist, add site
+                  or hazard photos, then preview and submit from their phone.
                 </p>
               </div>
             </li>
@@ -108,10 +111,10 @@ export function HomePage() {
                 <LayoutDashboard size={28} strokeWidth={2.25} />
               </div>
               <div className="how-it-works__copy">
-                <h3>Admin reviews</h3>
+                <h3>Review and report</h3>
                 <p>
-                  Supervisors open the dashboard, review submissions, and track
-                  compliance status.
+                  Admins filter the dashboard, assign workers on Sites, generate
+                  monthly reports, and export PDFs for compliance.
                 </p>
               </div>
             </li>

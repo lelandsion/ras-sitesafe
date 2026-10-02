@@ -151,7 +151,7 @@ export function AdminSitesPage() {
 
           {!loading && !error && sites.length === 0 && (
             <div className="panel-state" role="status">
-              <p>No jobsites yet. Add a test site or run the RAS seed SQL.</p>
+              <p>No jobsites yet. Create a site to assign framers and collect checks.</p>
               <button
                 type="button"
                 className="btn btn--primary touch-target"
