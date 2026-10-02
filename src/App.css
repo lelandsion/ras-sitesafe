@@ -78,7 +78,7 @@
 .app-header__brand-lockup {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.35rem;
   flex: 1;
   min-width: 0;
   min-height: var(--ras-touch-min);
@@ -89,10 +89,11 @@
 .app-header__logo {
   display: block;
   flex-shrink: 0;
-  height: 40px;
+  height: 42px;
   width: auto;
   background: #000;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  /* No floating frame — mark sits flush in the green banner */
+  border: 0;
 }
 
 .app-header__wordmark {
@@ -103,50 +104,51 @@
   justify-content: center;
   gap: 0;
   line-height: 1;
+  padding-top: 0.05rem;
 }
 
 .app-header__brand {
   display: block;
   font-family: var(--font-display);
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 600;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   opacity: 0.9;
-  line-height: 1.1;
+  line-height: 1;
 }
 
 .app-header__product {
-  margin: 0.05rem 0 0;
+  margin: 0.02rem 0 0;
   font-family: var(--font-display);
-  font-size: clamp(1.4rem, 5.8vw, 1.85rem);
+  font-size: clamp(1.45rem, 5.8vw, 1.9rem);
   font-weight: 700;
-  letter-spacing: 0.08em;
-  line-height: 0.95;
+  letter-spacing: 0.07em;
+  line-height: 0.92;
 }
 
 .app-header__tag {
-  margin: 0.18rem 0 0;
+  margin: 0.14rem 0 0;
   font-family: var(--font-body);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 400;
   letter-spacing: 0.02em;
   text-transform: none;
   opacity: 0.88;
-  line-height: 1.15;
+  line-height: 1.1;
 }
 
 @media (min-width: 640px) {
   .app-header__row {
-    padding: 0.65rem 1.15rem;
+    padding: 0.55rem 1.15rem;
   }
 
   .app-header__brand-lockup {
-    gap: 0.6rem;
+    gap: 0.4rem;
   }
 
   .app-header__logo {
-    height: 46px;
+    height: 48px;
   }
 }
 
