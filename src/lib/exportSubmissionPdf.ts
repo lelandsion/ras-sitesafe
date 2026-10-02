@@ -98,10 +98,11 @@ function sectionTitle(doc: jsPDF, y: number, title: string): number {
 }
 
 function markFor(v: TriState | null, col: 'yes' | 'no' | 'na'): string {
+  // Helvetica has no reliable check glyph — use a solid X in the selected cell.
   if (!v) return ''
-  if (col === 'yes' && v === 'yes') return '✓'
-  if (col === 'no' && v === 'no') return '✓'
-  if (col === 'na' && v === 'na') return '✓'
+  if (col === 'yes' && v === 'yes') return 'X'
+  if (col === 'no' && v === 'no') return 'X'
+  if (col === 'na' && v === 'na') return 'X'
   return ''
 }
 
@@ -155,16 +156,25 @@ function drawChecklistTable(
     doc.setFontSize(9)
     doc.text(label, MARGIN + 2, rowY + 4.8)
 
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(11)
-    doc.text(markFor(val, 'yes'), MARGIN + colItem + colW * 0.5, rowY + 5, {
-      align: 'center',
-    })
-    doc.text(markFor(val, 'no'), MARGIN + colItem + colW * 1.5, rowY + 5, {
-      align: 'center',
-    })
-    doc.text(markFor(val, 'na'), MARGIN + colItem + colW * 2.5, rowY + 5, {
-      align: 'center',
+    const cols: Array<'yes' | 'no' | 'na'> = ['yes', 'no', 'na']
+    cols.forEach((col, colIdx) => {
+      const mark = markFor(val, col)
+      const cx = MARGIN + colItem + colW * (colIdx + 0.5)
+      if (mark) {
+        doc.setFillColor(...RAS_GREEN)
+        doc.rect(
+          MARGIN + colItem + colW * colIdx + 1,
+          rowY + 1,
+          colW - 2,
+          rowH - 2,
+          'F',
+        )
+        doc.setTextColor(255, 255, 255)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(10)
+        doc.text(mark, cx, rowY + 5, { align: 'center' })
+        doc.setTextColor(...CHARCOAL)
+      }
     })
 
     if (!val) {
