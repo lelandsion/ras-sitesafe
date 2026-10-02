@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { LogIn } from 'lucide-react'
 import { AppHeader } from '../components/layout/AppHeader'
 import { useAuth } from '../hooks/auth-context'
-import { supabase } from '../lib/supabase'
+import { getSupabase, isSupabaseConfigured } from '../lib/supabase'
 
 export function LoginPage() {
   const { signIn } = useAuth()
@@ -16,9 +16,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const envReady = Boolean(
-    import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY,
-  )
+  const envReady = isSupabaseConfigured
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -35,10 +33,10 @@ export function LoginPage() {
     // Resolve role for redirect
     const {
       data: { user },
-    } = await supabase.auth.getUser()
+    } = await getSupabase().auth.getUser()
     let dest = from ?? '/framer'
     if (user) {
-      const { data: profile } = await supabase
+      const { data: profile } = await getSupabase()
         .from('profiles')
         .select('role')
         .eq('id', user.id)

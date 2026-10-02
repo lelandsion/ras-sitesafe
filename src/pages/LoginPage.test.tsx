@@ -9,7 +9,8 @@ const getUser = vi.fn()
 const maybeSingle = vi.fn()
 
 vi.mock('../lib/supabase', () => ({
-  supabase: {
+  isSupabaseConfigured: true,
+  getSupabase: () => ({
     auth: {
       getUser: (...args: unknown[]) => getUser(...args),
     },
@@ -20,7 +21,7 @@ vi.mock('../lib/supabase', () => ({
         }),
       }),
     }),
-  },
+  }),
 }))
 
 function renderLogin(authOverrides: Partial<AuthContextValue> = {}) {
@@ -33,6 +34,7 @@ function renderLogin(authOverrides: Partial<AuthContextValue> = {}) {
     profile: null,
     role: null,
     loading: false,
+    supabaseConfigured: true,
     signOut: async () => undefined,
     ...authOverrides,
     signIn,

@@ -8,6 +8,8 @@ export interface AuthContextValue {
   profile: Profile | null
   role: UserRole | null
   loading: boolean
+  /** False when VITE_SUPABASE_* env vars are missing (app shell still renders). */
+  supabaseConfigured: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
 }

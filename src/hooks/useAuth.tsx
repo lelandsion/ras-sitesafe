@@ -7,11 +7,15 @@ import {
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { AuthContext, type AuthContextValue } from './auth-context'
-import { supabase } from '../lib/supabase'
+import {
+  getSupabase,
+  isSupabaseConfigured,
+  SUPABASE_CONFIG_MESSAGE,
+} from '../lib/supabase'
 import type { Profile, UserRole } from '../types/database'
 
 async function fetchProfile(userId: string): Promise<Profile | null> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('profiles')
     .select('id, display_name, role, created_at, updated_at')
     .eq('id', userId)
@@ -31,7 +35,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLoading(false)
+      return
+    }
+
     let active = true
+    const supabase = getSupabase()
 
     supabase.auth.getSession().then(async ({ data }) => {
       if (!active) return
@@ -67,12 +77,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (!isSupabaseConfigured) {
+      return { error: SUPABASE_CONFIG_MESSAGE }
+    }
+    const { error } = await getSupabase().auth.signInWithPassword({ email, password })
     return { error: error ? error.message : null }
   }, [])
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut()
+    if (!isSupabaseConfigured) {
+      setProfile(null)
+      setSession(null)
+      setUser(null)
+      return
+    }
+    await getSupabase().auth.signOut()
     setProfile(null)
   }, [])
 
@@ -85,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       role,
       loading,
+      supabaseConfigured: isSupabaseConfigured,
       signIn,
       signOut,
     }),

@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/auth-context'
 import type { UserRole } from '../../types/database'
+import { SupabaseConfigNotice } from './SupabaseConfigNotice'
 
 function LoadingScreen({ label = 'Loading…' }: { label?: string }) {
   return (
@@ -12,8 +13,15 @@ function LoadingScreen({ label = 'Loading…' }: { label?: string }) {
 
 /** Requires a signed-in session. Optionally requires a specific role. */
 export function RequireAuth({ role }: { role?: UserRole }) {
-  const { session, profile, loading, role: userRole, signOut } = useAuth()
+  const { session, profile, loading, role: userRole, signOut, supabaseConfigured } =
+    useAuth()
   const location = useLocation()
+
+  if (!supabaseConfigured) {
+    return (
+      <SupabaseConfigNotice title="Sign-in unavailable until Supabase is configured" />
+    )
+  }
 
   if (loading) {
     return <LoadingScreen label="Checking session…" />

@@ -27,6 +27,7 @@ export function makeAuthValue(
     profile: partial.profile ?? null,
     role: partial.role ?? partial.profile?.role ?? null,
     loading: partial.loading ?? false,
+    supabaseConfigured: partial.supabaseConfigured ?? true,
     signIn: partial.signIn ?? (async () => ({ error: null })),
     signOut: partial.signOut ?? (async () => undefined),
   }

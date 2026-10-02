@@ -5,6 +5,21 @@ import { RedirectIfAuthed, RequireAuth } from './RequireAuth'
 import { AuthRoutes, makeProfile } from '../../test/auth-test-utils'
 
 describe('RequireAuth', () => {
+  it('shows config notice when Supabase env is missing', () => {
+    render(
+      <AuthRoutes
+        auth={{ loading: false, supabaseConfigured: false }}
+        initialPath="/admin/panel"
+      >
+        <Route element={<RequireAuth role="admin" />}>
+          <Route path="/admin/panel" element={<div>Admin secret</div>} />
+        </Route>
+      </AuthRoutes>,
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent(/until Supabase is configured/i)
+    expect(screen.queryByText('Admin secret')).not.toBeInTheDocument()
+  })
+
   it('shows a loading state while auth is resolving', () => {
     render(
       <AuthRoutes auth={{ loading: true }} initialPath="/admin/panel">
