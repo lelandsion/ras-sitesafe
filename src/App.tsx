@@ -1,28 +1,37 @@
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
+import { RedirectIfAuthed, RequireAuth } from './components/auth/RequireAuth'
+import { AuthProvider } from './hooks/useAuth'
+import { AdminHomePage } from './pages/admin/AdminHomePage'
+import { FramerHomePage } from './pages/framer/FramerHomePage'
+import { SafetyFormPage } from './pages/framer/SafetyFormPage'
+import { HomePage } from './pages/HomePage'
+import { LoginPage } from './pages/LoginPage'
 
 function App() {
   return (
-    <div className="app-shell">
-      <header className="app-header">
-        <span className="app-header__brand">RAS</span>
-        <h1 className="app-header__product">SITESAFE</h1>
-        <p className="app-header__tag">Site Safety &amp; Compliance</p>
-      </header>
-      <main className="app-main">
-        <h2>Foundation ready</h2>
-        <p>
-          Mobile-first construction safety forms and compliance dashboard for
-          Ron Anderson &amp; Sons. Auth, schema, and forms come next — see the
-          foundation plan.
-        </p>
-        <ul className="status-list">
-          <li>Vite + React + TypeScript scaffold</li>
-          <li>Supabase client stub (env keys pending)</li>
-          <li>Folder layout for admin / framer flows</li>
-        </ul>
-      </main>
-    </div>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route element={<RedirectIfAuthed />}>
+            <Route path="/login" element={<LoginPage />} />
+          </Route>
+          <Route element={<RequireAuth role="admin" />}>
+            <Route path="/admin" element={<AdminHomePage />} />
+          </Route>
+          <Route element={<RequireAuth role="framer" />}>
+            <Route path="/framer" element={<FramerHomePage />} />
+            <Route path="/framer/new" element={<SafetyFormPage mode="new" />} />
+            <Route
+              path="/framer/submissions/:id"
+              element={<SafetyFormPage mode="edit" />}
+            />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   )
 }
 
-export default App

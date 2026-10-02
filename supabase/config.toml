@@ -1,0 +1,8 @@
+# A Supabase CLI config stub — link with `npx supabase link --project-ref <ref>`
+project_id = "kgqxbyrgjxglboulrqft"
+
+[api]
+enabled = true
+
+[db]
+major_version = 15
