@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import rasLogo from '../../assets/branding/ras-logo-no-text.png'
+import { useAuth } from '../../hooks/auth-context'
 
 /**
  * Branded app shell header — RAS / SITESAFE / Site Safety & Compliance.
@@ -8,6 +10,7 @@ import rasLogo from '../../assets/branding/ras-logo-no-text.png'
  */
 export function AppHeader() {
   const [navOpen, setNavOpen] = useState(false)
+  const { session, role, signOut } = useAuth()
 
   return (
     <header
@@ -15,13 +18,15 @@ export function AppHeader() {
       role="banner"
     >
       <div className="app-header__row">
-        <img
-          className="app-header__logo"
-          src={rasLogo}
-          alt="Ron Anderson & Sons"
-          width={808}
-          height={534}
-        />
+        <Link to="/" className="app-header__logo-link" onClick={() => setNavOpen(false)}>
+          <img
+            className="app-header__logo"
+            src={rasLogo}
+            alt="Ron Anderson & Sons"
+            width={808}
+            height={534}
+          />
+        </Link>
         <div className="app-header__wordmark">
           <span className="app-header__brand">RAS</span>
           <h1 className="app-header__product">SITESAFE</h1>
@@ -39,12 +44,33 @@ export function AppHeader() {
         </button>
       </div>
       <nav id="app-nav" className="app-header__nav" aria-label="Primary">
-        <a href="#sign-in" onClick={() => setNavOpen(false)}>
-          Sign in
-        </a>
-        <a href="#overview" onClick={() => setNavOpen(false)}>
+        <Link to="/" onClick={() => setNavOpen(false)}>
           Overview
-        </a>
+        </Link>
+        {session ? (
+          <>
+            <Link
+              to={role === 'admin' ? '/admin' : '/framer'}
+              onClick={() => setNavOpen(false)}
+            >
+              {role === 'admin' ? 'Admin' : 'Field'}
+            </Link>
+            <button
+              type="button"
+              className="app-header__nav-btn"
+              onClick={() => {
+                setNavOpen(false)
+                void signOut()
+              }}
+            >
+              Sign out
+            </button>
+          </>
+        ) : (
+          <Link to="/login" onClick={() => setNavOpen(false)}>
+            Sign in
+          </Link>
+        )}
       </nav>
     </header>
   )

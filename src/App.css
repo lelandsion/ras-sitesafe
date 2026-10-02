@@ -38,11 +38,16 @@
   min-height: var(--ras-touch-min);
 }
 
+.app-header__logo-link {
+  display: block;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
 .app-header__logo {
   display: block;
   height: 48px;
   width: auto;
-  flex-shrink: 0;
   background: #000;
   border: 1px solid rgba(255, 255, 255, 0.22);
 }
@@ -138,9 +143,34 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
-.app-header__nav a:focus-visible {
+.app-header__nav a:focus-visible,
+.app-header__nav-btn:focus-visible {
   outline: 3px solid #fff;
   outline-offset: 2px;
+}
+
+.app-header__nav-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ras-touch-min);
+  padding: 0 0.85rem;
+  color: var(--ras-on-primary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ras-radius);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+.app-header__nav-btn:hover {
+  opacity: 1;
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .app-header--nav-open .app-header__nav {
@@ -364,5 +394,160 @@
 
   .hero__title {
     font-size: 4rem;
+  }
+}
+
+/* —— Login —— */
+.login,
+.role-home {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 2rem 1.15rem 2.75rem;
+  max-width: 28rem;
+  width: 100%;
+  margin: 0 auto;
+  animation: hero-rise 620ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+}
+
+.login__kicker,
+.role-home__kicker {
+  margin: 0 0 0.65rem;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--ras-primary);
+}
+
+.login__title,
+.role-home__title {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 9vw, 2.8rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 0.95;
+  text-transform: uppercase;
+  color: var(--ras-charcoal);
+}
+
+.login__title span,
+.role-home__title span {
+  display: block;
+  color: var(--ras-primary);
+  font-size: 0.55em;
+  letter-spacing: 0.12em;
+  margin-top: 0.35rem;
+}
+
+.login__lead,
+.role-home__lead {
+  margin: 0 0 1.5rem;
+  font-size: 1.02rem;
+  line-height: 1.45;
+  color: var(--ras-muted);
+}
+
+.login__lead code,
+.login__hint code,
+.login__banner code {
+  font-size: 0.9em;
+  color: var(--ras-ink);
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.login__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ras-charcoal);
+}
+
+.login__input {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border: 2px solid var(--ras-charcoal);
+  border-radius: var(--ras-radius);
+  background: var(--ras-surface-raised);
+  color: var(--ras-ink);
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 400;
+}
+
+.login__input:focus-visible {
+  outline: 3px solid var(--ras-secondary);
+  outline-offset: 2px;
+}
+
+.login__submit {
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
+.login__banner {
+  margin: 0 0 0.5rem;
+  padding: 0.85rem 1rem;
+  border-left: 4px solid var(--ras-charcoal);
+  background: rgba(255, 255, 255, 0.85);
+  font-size: 0.95rem;
+  color: var(--ras-ink);
+}
+
+.login__banner--warn {
+  border-left-color: var(--ras-warning);
+}
+
+.login__banner--error {
+  border-left-color: var(--ras-danger);
+  color: var(--ras-danger);
+}
+
+.login__hint {
+  margin: 1.5rem 0 0;
+  padding-top: 1rem;
+  border-top: 2px solid var(--ras-border);
+  font-size: 0.88rem;
+  color: var(--ras-muted);
+}
+
+.role-home__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.auth-loading {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background: var(--ras-surface);
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ras-primary);
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .role-home__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
   }
 }
