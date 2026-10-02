@@ -65,7 +65,20 @@ export function AppHeader() {
               to={role === 'admin' ? '/admin' : '/framer'}
               onClick={() => setNavOpen(false)}
             >
-              {role === 'admin' ? 'Admin' : 'Field'}
+              {role === 'admin' ? 'Dashboard' : 'Field'}
+            </Link>
+            {role === 'admin' && (
+              <Link to="/admin/reports" onClick={() => setNavOpen(false)}>
+                Reports
+              </Link>
+            )}
+            {role === 'admin' && (
+              <Link to="/admin/sites" onClick={() => setNavOpen(false)}>
+                Sites
+              </Link>
+            )}
+            <Link to="/account" onClick={() => setNavOpen(false)}>
+              Account
             </Link>
             <button
               type="button"

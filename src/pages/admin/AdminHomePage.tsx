@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   AlertTriangle,
   CheckCircle2,
   ClipboardList,
+  ClipboardPlus,
+  Eye,
   FileDown,
   FileWarning,
   LogOut,
@@ -27,6 +30,7 @@ import {
   type ChecklistSubmissionRow,
 } from '../../lib/checklistAnalytics'
 import { exportSubmissionToPdf } from '../../lib/exportSubmissionPdf'
+import { listSubmissionPhotos } from '../../services/photosService'
 import {
   listAdminSubmissions,
   reviewSubmission,
@@ -178,10 +182,12 @@ export function AdminHomePage() {
     setUpdatingId(null)
   }
 
-  function exportRowPdf(item: SubmissionWithDetails) {
+  async function exportRowPdf(item: SubmissionWithDetails) {
     const c = parseDailySafetyChecklist(item.checklist, item.created_at.slice(0, 10))
-    exportSubmissionToPdf({
+    const { data: photos } = await listSubmissionPhotos(item.id)
+    await exportSubmissionToPdf({
       submission: item,
+      photos,
       adminSummaryLines: [
         ...adminSummaryLines,
         `Structured issues on this check: ${countStructuredIssues(c)}`,
@@ -209,6 +215,13 @@ export function AdminHomePage() {
               <AdminNav />
             </div>
             <div className="admin-dash__actions">
+              <Link
+                to="/admin/submissions/new"
+                className="btn btn--primary touch-target"
+              >
+                <ClipboardPlus size={20} strokeWidth={2.5} aria-hidden />
+                New report
+              </Link>
               <button
                 type="button"
                 className="btn btn--ghost touch-target"
@@ -429,12 +442,24 @@ export function AdminHomePage() {
                                       ))}
                                     </select>
                                   ) : (
-                                    <span className="admin-table__draft">Draft</span>
+                                    <Link
+                                      to={`/admin/submissions/${item.id}`}
+                                      className="admin-table__draft touch-target"
+                                    >
+                                      Edit draft
+                                    </Link>
                                   )}
+                                  <Link
+                                    to={`/admin/submissions/${item.id}/preview`}
+                                    className="btn btn--ghost touch-target admin-table__pdf"
+                                  >
+                                    <Eye size={18} strokeWidth={2.5} aria-hidden />
+                                    Preview
+                                  </Link>
                                   <button
                                     type="button"
                                     className="btn btn--ghost touch-target admin-table__pdf"
-                                    onClick={() => exportRowPdf(item)}
+                                    onClick={() => void exportRowPdf(item)}
                                   >
                                     <FileDown size={18} strokeWidth={2.5} aria-hidden />
                                     Export PDF

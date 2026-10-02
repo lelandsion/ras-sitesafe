@@ -10,6 +10,7 @@ import {
 import {
   PHOTO_MAX_BYTES,
   type SubmissionPhoto,
+  type SubmissionPhotoKind,
 } from '../../types/database'
 
 type Props = {
@@ -22,6 +23,7 @@ type Props = {
   blockedHint?: string | null
   title?: string
   triggerLabel?: string
+  photoKind?: SubmissionPhotoKind
 }
 
 function PhotoThumb({
@@ -78,6 +80,7 @@ export function PhotoUpload({
   blockedHint,
   title = 'Site photos',
   triggerLabel = 'Add photos',
+  photoKind = 'site',
 }: Props) {
   const inputId = useId()
   const [busy, setBusy] = useState(false)
@@ -116,6 +119,7 @@ export function PhotoUpload({
         userId,
         submissionId: targetSubmissionId,
         file,
+        photoKind,
       })
       if (uploadError || !data) {
         setError(uploadError ?? 'Upload failed.')

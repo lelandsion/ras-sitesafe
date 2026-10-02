@@ -5,6 +5,7 @@ import {
   PHOTO_MAX_BYTES,
   type PhotoContentType,
   type SubmissionPhoto,
+  type SubmissionPhotoKind,
 } from '../types/database'
 import { humanizeDbError } from './sitesService'
 
@@ -45,12 +46,21 @@ function buildStoragePath(
 
 export async function listSubmissionPhotos(
   submissionId: string,
+  options?: { kind?: SubmissionPhotoKind },
 ): Promise<{ data: SubmissionPhoto[]; error: string | null }> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('submission_photos')
-    .select('id, submission_id, storage_path, content_type, byte_size, created_at')
+    .select(
+      'id, submission_id, storage_path, content_type, byte_size, photo_kind, created_at',
+    )
     .eq('submission_id', submissionId)
     .order('created_at', { ascending: true })
+
+  if (options?.kind) {
+    query = query.eq('photo_kind', options.kind)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     return { data: [], error: humanizeDbError(error.message) }
@@ -63,6 +73,7 @@ export async function uploadSubmissionPhoto(params: {
   userId: string
   submissionId: string
   file: File
+  photoKind?: SubmissionPhotoKind
 }): Promise<{ data: SubmissionPhoto | null; error: string | null }> {
   const validation = validatePhotoFile(params.file)
   if (validation) {
@@ -94,8 +105,11 @@ export async function uploadSubmissionPhoto(params: {
       storage_path: storagePath,
       content_type: contentType,
       byte_size: params.file.size,
+      photo_kind: params.photoKind ?? 'site',
     })
-    .select('id, submission_id, storage_path, content_type, byte_size, created_at')
+    .select(
+      'id, submission_id, storage_path, content_type, byte_size, photo_kind, created_at',
+    )
     .single()
 
   if (error) {

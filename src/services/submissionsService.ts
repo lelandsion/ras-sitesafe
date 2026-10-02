@@ -86,7 +86,7 @@ export async function listMySubmissions(): Promise<{
 }
 
 export async function getSubmission(id: string): Promise<{
-  data: SubmissionWithSite | null
+  data: SubmissionWithDetails | null
   error: string | null
 }> {
   const { data, error } = await supabase
@@ -103,7 +103,8 @@ export async function getSubmission(id: string): Promise<{
       reviewed_at,
       created_at,
       updated_at,
-      sites ( id, name, address )
+      sites ( id, name, address ),
+      submitter:profiles!submissions_submitted_by_fkey ( id, display_name )
     `,
     )
     .eq('id', id)
@@ -116,7 +117,7 @@ export async function getSubmission(id: string): Promise<{
   if (!data) return { data: null, error: null }
 
   return {
-    data: mapSubmissionRow(data as Record<string, unknown>),
+    data: mapAdminSubmissionRow(data as Record<string, unknown>),
     error: null,
   }
 }

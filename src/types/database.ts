@@ -60,12 +60,20 @@ export interface Submission {
   updated_at: string
 }
 
+export type SubmissionPhotoKind = 'site' | 'hazard'
+
+export const SUBMISSION_PHOTO_KIND_LABELS: Record<SubmissionPhotoKind, string> = {
+  site: 'Site photos',
+  hazard: 'Hazard photos',
+}
+
 export interface SubmissionPhoto {
   id: string
   submission_id: string
   storage_path: string
   content_type: 'image/jpeg' | 'image/png' | 'image/webp'
   byte_size: number | null
+  photo_kind: SubmissionPhotoKind
   created_at: string
 }
 

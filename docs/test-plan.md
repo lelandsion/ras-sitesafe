@@ -15,7 +15,7 @@ Presentation-ready QA checklist for assessors and demos. Pair with automated Vit
 | Demo framer | Daniel Ortiz — `framer@ras-sitesafe-demo.com` |
 | Password | *(shared demo password set when seeding Supabase Auth — see README Test credentials; do not invent one)* |
 | Env | `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (publishable/anon only) in `.env.local` or Vercel |
-| Schema | Migrations through `20261002000300_submission_checklist.sql` + demo seed (`docs/supabase-seed-notes.md`) |
+| Schema | Migrations through `20261002000500_saved_reports.sql` + demo seed (`docs/supabase-seed-notes.md`) |
 | Photos | JPEG / PNG / WebP, max **8 MiB** each |
 
 > There is **no public sign-up**. Accounts are provisioned in Supabase Auth.
@@ -56,7 +56,10 @@ Presentation-ready QA checklist for assessors and demos. Pair with automated Vit
 | 3.5 | Attach GIF / PDF or file **> 8 MiB** | Rejected with clear client message (type or size) |
 | 3.6 | **Save draft** | Status **Draft**; appears in framer list; can reopen and edit |
 | 3.7 | **Submit Safety Check** | Status **Submitted**; form locked |
-| 3.8 | Reopen submitted check | Read-only structured answers; **Export PDF** downloads checklist PDF |
+| 3.8 | **Site photos** (no hazard required) | Add photo under **Site photos**; appears in preview/PDF |
+| 3.9 | **Preview report** / **Export PDF** on draft | Works after jobsite selected (auto-saves draft) |
+| 3.10 | Reopen submitted check | Read-only; **Preview** + **Export PDF** with checklist + photos |
+| 3.11 | Header **Account** | `/account` shows sites, activity counts, email/role |
 
 ---
 
@@ -69,7 +72,10 @@ Presentation-ready QA checklist for assessors and demos. Pair with automated Vit
 | 4.3 | **Open issues** list | Structured “No” / hazard / incident rows from checklist JSON |
 | 4.4 | **Worker submissions** table | Review dropdown + **Export PDF** per row |
 | 4.5 | Approve / reject from table | Status persists after refresh |
-| 4.6 | **Sites** tab | Nav to `/admin/sites` (jobsites unchanged) |
+| 4.6 | **Dashboard / Reports / Sites** tabs | `/admin`, `/admin/reports`, `/admin/sites` all reachable |
+| 4.7 | **Reports** → Generate | Site + month + includes → PDF download + saved list **View** |
+| 4.8 | **New report** (admin) | Save / Preview / Export without **Submit Safety Check** |
+| 4.9 | **Account** | Org-wide activity + active sites list |
 
 ---
 

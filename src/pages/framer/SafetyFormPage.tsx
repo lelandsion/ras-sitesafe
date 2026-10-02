@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   ClipboardCheck,
+  Eye,
   FileDown,
   Save,
   Send,
@@ -14,7 +15,7 @@ import { TriStateField } from '../../components/forms/TriStateField'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { useAuth } from '../../hooks/auth-context'
 import { exportSubmissionToPdf } from '../../lib/exportSubmissionPdf'
-import { listAssignedSites } from '../../services/sitesService'
+import { listAdminSites, listAssignedSites } from '../../services/sitesService'
 import {
   createSubmission,
   deleteDraftSubmission,
@@ -22,7 +23,12 @@ import {
   updateSubmission,
 } from '../../services/submissionsService'
 import { listSubmissionPhotos } from '../../services/photosService'
-import type { Site, SubmissionPhoto, SubmissionStatus } from '../../types/database'
+import type {
+  Site,
+  SubmissionPhoto,
+  SubmissionPhotoKind,
+  SubmissionStatus,
+} from '../../types/database'
 import {
   emptyDailySafetyChecklist,
   HAZARD_SEVERITY_LABELS,
@@ -34,12 +40,23 @@ import {
 } from '../../types/safetyChecklist'
 
 type Mode = 'new' | 'edit'
+type Audience = 'framer' | 'admin'
 
 function isEditable(status: SubmissionStatus | null): boolean {
   return status === null || status === 'draft'
 }
 
-export function SafetyFormPage({ mode }: { mode: Mode }) {
+function submissionBasePath(audience: Audience): string {
+  return audience === 'admin' ? '/admin/submissions' : '/framer/submissions'
+}
+
+export function SafetyFormPage({
+  mode,
+  audience = 'framer',
+}: {
+  mode: Mode
+  audience?: Audience
+}) {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user, profile } = useAuth()
@@ -64,6 +81,9 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
   const [info, setInfo] = useState<string | null>(null)
 
   const editable = isEditable(status)
+  const isAdmin = audience === 'admin'
+  const basePath = submissionBasePath(audience)
+  const listPath = isAdmin ? '/admin' : '/framer'
 
   const selectedSite = useMemo(
     () => sites.find((s) => s.id === siteId) ?? null,
@@ -74,7 +94,12 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
     setLoading(true)
     setError(null)
 
-    const sitesResult = await listAssignedSites()
+    const sitesResult = isAdmin
+      ? await listAdminSites().then((r) => ({
+          ...r,
+          data: r.data.filter((s) => s.is_active),
+        }))
+      : await listAssignedSites()
     if (sitesResult.error) {
       setError(sitesResult.error)
       setSites([])
@@ -117,7 +142,7 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
     }
 
     setLoading(false)
-  }, [id, mode])
+  }, [id, isAdmin, mode])
 
   useEffect(() => {
     void load()
@@ -150,9 +175,25 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
 
     setSubmissionId(data.id)
     setStatus(data.status)
-    navigate(`/framer/submissions/${data.id}`, { replace: true })
+    navigate(`${basePath}/${data.id}`, { replace: true })
     return data.id
   }
+
+  function setPhotosForKind(kind: SubmissionPhotoKind, kindPhotos: SubmissionPhoto[]) {
+    setPhotos((prev) => [
+      ...prev.filter((p) => (p.photo_kind ?? 'site') !== kind),
+      ...kindPhotos,
+    ])
+  }
+
+  const sitePhotos = useMemo(
+    () => photos.filter((p) => (p.photo_kind ?? 'site') === 'site'),
+    [photos],
+  )
+  const hazardPhotos = useMemo(
+    () => photos.filter((p) => p.photo_kind === 'hazard'),
+    [photos],
+  )
 
   async function persist(
     nextStatus: Extract<SubmissionStatus, 'draft' | 'submitted'>,
@@ -216,8 +257,8 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
       return
     }
 
-    setInfo('Draft saved.')
-    navigate(`/framer/submissions/${targetId}`, { replace: true })
+    setInfo(isAdmin ? 'Report saved.' : 'Draft saved.')
+    navigate(`${basePath}/${targetId}`, { replace: true })
   }
 
   async function onDeleteDraft() {
@@ -230,7 +271,35 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
       setError(deleteError)
       return
     }
-    navigate('/framer', { replace: true })
+    navigate(listPath, { replace: true })
+  }
+
+  async function syncDraftForPreview(): Promise<string | null> {
+    if (!siteId) {
+      setError('Select a jobsite first.')
+      return null
+    }
+    const sid = await ensureSubmissionId()
+    if (!sid || !user) return null
+    const { error: updateError } = await updateSubmission(sid, {
+      site_id: siteId,
+      notes: notes.trim() || null,
+      checklist: serializeChecklist(checklist),
+      status: 'draft',
+    })
+    if (updateError) {
+      setError(updateError)
+      return null
+    }
+    return sid
+  }
+
+  async function onPreview() {
+    setSaving(true)
+    const sid = await syncDraftForPreview()
+    setSaving(false)
+    if (!sid) return
+    navigate(`${basePath}/${sid}/preview`)
   }
 
   async function onSubmit(e: FormEvent) {
@@ -238,11 +307,14 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
     await persist('submitted')
   }
 
-  function onExportPdf() {
-    if (!submissionId) return
-    exportSubmissionToPdf({
+  async function onExportPdf() {
+    setSaving(true)
+    const sid = submissionId ?? (await syncDraftForPreview())
+    setSaving(false)
+    if (!sid) return
+    await exportSubmissionToPdf({
       submission: {
-        id: submissionId,
+        id: sid,
         status: status ?? 'draft',
         notes,
         checklist: serializeChecklist(checklist),
@@ -259,11 +331,11 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
           ? { id: profile.id, display_name: profile.display_name }
           : null,
       },
-      photoCount: photos.length,
+      photos,
     })
   }
 
-  const hazardPhotoHint =
+  const photoAttachHint =
     !siteId && editable ? 'Select a jobsite first.' : null
 
   if (loading) {
@@ -284,9 +356,9 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
       <AppHeader />
       <main className="app-main">
         <section className="form-page" aria-labelledby="form-title">
-          <Link to="/framer" className="form-page__back touch-target">
+          <Link to={listPath} className="form-page__back touch-target">
             <ArrowLeft size={18} strokeWidth={2.5} aria-hidden />
-            My submissions
+            {isAdmin ? 'Admin dashboard' : 'My submissions'}
           </Link>
 
           <p className="form-page__kicker">RAS SiteSafe</p>
@@ -360,6 +432,29 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
                 ))}
               </select>
             </label>
+
+            {user && (
+              <section className="check-section" aria-labelledby="site-photos-heading">
+                <h3 id="site-photos-heading" className="check-section__title">
+                  Site photos
+                </h3>
+                <p className="check-section__lead">
+                  General jobsite photos — not tied to a hazard report.
+                </p>
+                <PhotoUpload
+                  userId={user.id}
+                  submissionId={submissionId}
+                  ensureSubmissionId={ensureSubmissionId}
+                  photos={sitePhotos}
+                  onChange={(next) => setPhotosForKind('site', next)}
+                  disabled={!editable || saving}
+                  blockedHint={photoAttachHint}
+                  title="Site photos"
+                  triggerLabel="Add photo"
+                  photoKind="site"
+                />
+              </section>
+            )}
 
             <section className="check-section" aria-labelledby="ppe-heading">
               <h3 id="ppe-heading" className="check-section__title">
@@ -578,12 +673,13 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
                       userId={user.id}
                       submissionId={submissionId}
                       ensureSubmissionId={ensureSubmissionId}
-                      photos={photos}
-                      onChange={setPhotos}
+                      photos={hazardPhotos}
+                      onChange={(next) => setPhotosForKind('hazard', next)}
                       disabled={!editable || saving}
-                      blockedHint={hazardPhotoHint}
+                      blockedHint={photoAttachHint}
                       title="Hazard photos"
                       triggerLabel="Add photo"
+                      photoKind="hazard"
                     />
                   )}
                 </>
@@ -670,16 +766,40 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
                   onClick={() => void persist('draft')}
                 >
                   <Save size={20} strokeWidth={2.5} aria-hidden />
-                  {saving ? 'Saving…' : 'Save draft'}
+                  {saving ? 'Saving…' : isAdmin ? 'Save' : 'Save draft'}
                 </button>
-                <button
-                  type="submit"
-                  className="btn btn--primary touch-target"
-                  disabled={saving || !siteId}
-                >
-                  <Send size={20} strokeWidth={2.5} aria-hidden />
-                  {saving ? 'Submitting…' : 'Submit Safety Check'}
-                </button>
+                {!isAdmin && (
+                  <button
+                    type="submit"
+                    className="btn btn--primary touch-target"
+                    disabled={saving || !siteId}
+                  >
+                    <Send size={20} strokeWidth={2.5} aria-hidden />
+                    {saving ? 'Submitting…' : 'Submit Safety Check'}
+                  </button>
+                )}
+                {(submissionId || siteId) && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn--ghost touch-target"
+                      disabled={saving || !siteId}
+                      onClick={() => void onPreview()}
+                    >
+                      <Eye size={20} strokeWidth={2.5} aria-hidden />
+                      Preview report
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--ghost touch-target"
+                      disabled={saving || !siteId}
+                      onClick={() => void onExportPdf()}
+                    >
+                      <FileDown size={20} strokeWidth={2.5} aria-hidden />
+                      Export PDF
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
@@ -690,14 +810,23 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
                   This check is {status?.replace('_', ' ')} and locked for field
                   edits.
                 </p>
-                <button
-                  type="button"
-                  className="btn btn--ghost touch-target"
-                  onClick={onExportPdf}
-                >
-                  <FileDown size={20} strokeWidth={2.5} aria-hidden />
-                  Export PDF
-                </button>
+                <div className="safety-form__actions">
+                  <Link
+                    to={`${basePath}/${submissionId}/preview`}
+                    className="btn btn--ghost touch-target"
+                  >
+                    <Eye size={20} strokeWidth={2.5} aria-hidden />
+                    Preview report
+                  </Link>
+                  <button
+                    type="button"
+                    className="btn btn--ghost touch-target"
+                    onClick={() => void onExportPdf()}
+                  >
+                    <FileDown size={20} strokeWidth={2.5} aria-hidden />
+                    Export PDF
+                  </button>
+                </div>
               </>
             )}
 
