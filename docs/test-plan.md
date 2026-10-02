@@ -70,6 +70,22 @@ Presentation-ready QA checklist for assessors and demos. Pair with automated Vit
 | 4.4 | Set a submitted report to **Under review** / **Start review** | Status updates; reviewed stamp fields set |
 | 4.5 | **Approve** a report | Status **Approved**; persists after refresh |
 | 4.6 | **Reject** a report | Status **Rejected**; persists after refresh |
+| 4.7 | Use **Reports** / **Sites** admin tabs | Nav switches between `/admin` and `/admin/sites` |
+
+---
+
+## 4b. Admin Sites & assignments
+
+| # | Step | Expected |
+| --- | --- | --- |
+| 4b.1 | Open `/admin/sites` as Sarah | Jobsite list: name, address, active/inactive pill, assigned framer count |
+| 4b.2 | **Add site** | Modal saves name/address/active; new row appears after refresh |
+| 4b.3 | **Edit** a site | Toggle inactive; framer dropdown on `/framer/new` hides inactive assigned sites |
+| 4b.4 | **Assign workers** | Modal lists current assignments; search by name or email finds Daniel |
+| 4b.5 | **Add** Daniel | Assignment count increases; Daniel sees site on `/framer/new` |
+| 4b.6 | **Remove** assignment | Count drops; Daniel no longer sees that site (unless still assigned elsewhere) |
+
+> Framer search requires SQL migration `supabase/migrations/20261002000200_admin_framer_directory.sql` applied in Supabase.
 
 ---
 

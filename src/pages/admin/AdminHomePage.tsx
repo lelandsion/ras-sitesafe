@@ -7,6 +7,7 @@ import {
   RefreshCw,
   ShieldAlert,
 } from 'lucide-react'
+import { AdminNav } from '../../components/admin/AdminNav'
 import { SubmissionsStatusChart } from '../../components/admin/SubmissionsStatusChart'
 import { AppHeader } from '../../components/layout/AppHeader'
 import { StatusBadge } from '../../components/ui/StatusBadge'
@@ -146,6 +147,7 @@ export function AdminHomePage() {
                 submissions for review, approve clear reports, or send issues
                 back.
               </p>
+              <AdminNav />
             </div>
             <div className="admin-dash__actions">
               <button

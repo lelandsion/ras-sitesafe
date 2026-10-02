@@ -24,11 +24,26 @@ export interface Site {
   updated_at: string
 }
 
+export interface SiteWithAssignmentCount extends Site {
+  assignment_count: number
+}
+
 export interface SiteAssignment {
   id: string
   site_id: string
   framer_id: string
   assigned_at: string
+}
+
+export interface SiteAssignmentWithFramer extends SiteAssignment {
+  framer: Pick<Profile, 'id' | 'display_name'> | null
+}
+
+/** Admin worker search row (RPC admin_list_framers). */
+export interface FramerDirectoryEntry {
+  id: string
+  display_name: string
+  email: string
 }
 
 export interface Submission {

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { humanizeDbError } from './sitesService'
+import { filterFramerDirectory, humanizeDbError } from './sitesService'
+import type { FramerDirectoryEntry } from '../types/database'
 
 vi.mock('../lib/supabase', () => ({
   supabase: { from: vi.fn() },
@@ -22,5 +23,29 @@ describe('humanizeDbError', () => {
     expect(humanizeDbError('permission denied for table sites')).toBe(
       'permission denied for table sites',
     )
+  })
+})
+
+describe('filterFramerDirectory', () => {
+  const rows: FramerDirectoryEntry[] = [
+    {
+      id: 'a',
+      display_name: 'Daniel Ortiz',
+      email: 'framer@ras-sitesafe-demo.com',
+    },
+    {
+      id: 'b',
+      display_name: 'Alex Kim',
+      email: 'alex@example.com',
+    },
+  ]
+
+  it('filters by display name or email', () => {
+    expect(filterFramerDirectory(rows, 'daniel', new Set())).toHaveLength(1)
+    expect(filterFramerDirectory(rows, 'demo.com', new Set())).toHaveLength(1)
+  })
+
+  it('excludes already assigned framers', () => {
+    expect(filterFramerDirectory(rows, '', new Set(['a']))).toEqual([rows[1]])
   })
 })

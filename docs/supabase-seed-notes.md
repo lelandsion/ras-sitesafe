@@ -11,6 +11,7 @@ Supabase CLI is not logged in on this machine (`SUPABASE_ACCESS_TOKEN` unset), s
 3. Paste the full contents of [`supabase/migrations/20261002000100_sitesafe_schema.sql`](../supabase/migrations/20261002000100_sitesafe_schema.sql)
 4. Run. Confirm tables under **Table Editor**: `profiles`, `sites`, `site_assignments`, `submissions`, `submission_photos`
 5. Confirm bucket **submission-photos** under **Storage**
+6. For **Admin → Sites** framer search, also run [`supabase/migrations/20261002000200_admin_framer_directory.sql`](../supabase/migrations/20261002000200_admin_framer_directory.sql) (creates `admin_list_framers()` RPC)
 
 ### Option B — Supabase CLI
 
