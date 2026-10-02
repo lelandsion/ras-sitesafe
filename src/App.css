@@ -1,0 +1,60 @@
+.app-shell {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--ras-primary);
+  color: #f7f5f0;
+}
+
+.app-header__brand {
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.app-header__product {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.app-header__tag {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.app-main {
+  flex: 1;
+  padding: 1.5rem;
+  max-width: 40rem;
+}
+
+.app-main h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+}
+
+.app-main p {
+  margin: 0 0 1rem;
+  color: var(--ras-muted);
+}
+
+.status-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--ras-ink);
+}
+
+.status-list li {
+  margin-bottom: 0.35rem;
+}

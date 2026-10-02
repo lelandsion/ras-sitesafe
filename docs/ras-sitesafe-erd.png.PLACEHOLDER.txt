@@ -1,0 +1,1 @@
+Real ERD not drawn yet. docs/ras-sitesafe-erd.png is a 1x1 placeholder pixel until schema/ERD milestone.
