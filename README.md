@@ -28,8 +28,10 @@ Framers submit jobsite safety checks (with photos) from a phone. Admins review s
 ## Features
 
 - **Login & roles** — Supabase Auth; route guards for `admin` and `framer` (no public sign-up)
-- **Framer flow** — assigned sites, safety form, JPEG/PNG/WebP photo upload to private Storage
-- **Admin dashboard** — submission list, status review, Recharts status breakdown
+- **Framer flow** — assigned sites, Daily Safety Check, JPEG/PNG/WebP photos; **No** answers capture safety issues
+- **Corrective actions** — Admin Safety Issues: create CA → In Progress → Resolve; framer sees outcome
+- **Daily Compliance** — Sites → Daily Compliance crew status (Assigned / Submitted / Missing / Issues)
+- **Admin dashboard** — Today's compliance strip, submission filters, click-through review, Recharts
 
 ---
 

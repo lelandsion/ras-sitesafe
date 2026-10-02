@@ -33,6 +33,8 @@ export interface SiteAssignment {
   site_id: string
   framer_id: string
   assigned_at: string
+  /** Null while active; set on soft-unassign (Part 8). */
+  unassigned_at: string | null
 }
 
 export interface SiteAssignmentWithFramer extends SiteAssignment {
@@ -60,11 +62,19 @@ export interface Submission {
   updated_at: string
 }
 
-export type SubmissionPhotoKind = 'site' | 'hazard'
+export type SubmissionPhotoKind =
+  | 'site'
+  | 'hazard'
+  | 'issue'
+  | 'resolution'
+  | 'corrective_action'
 
 export const SUBMISSION_PHOTO_KIND_LABELS: Record<SubmissionPhotoKind, string> = {
   site: 'Site photos',
   hazard: 'Hazard photos',
+  issue: 'Issue photos',
+  resolution: 'Resolution photos',
+  corrective_action: 'Corrective action photos',
 }
 
 export interface SubmissionPhoto {
@@ -74,6 +84,8 @@ export interface SubmissionPhoto {
   content_type: 'image/jpeg' | 'image/png' | 'image/webp'
   byte_size: number | null
   photo_kind: SubmissionPhotoKind
+  safety_issue_id?: string | null
+  corrective_action_id?: string | null
   created_at: string
 }
 

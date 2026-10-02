@@ -45,6 +45,9 @@ describe('photo constraint constants', () => {
     expect(SUBMISSION_PHOTO_KIND_LABELS).toEqual({
       site: 'Site photos',
       hazard: 'Hazard photos',
+      issue: 'Issue photos',
+      resolution: 'Resolution photos',
+      corrective_action: 'Corrective action photos',
     })
   })
 })

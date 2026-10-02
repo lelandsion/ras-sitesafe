@@ -11,6 +11,9 @@ export function AdminNav() {
       <NavLink to="/admin" end className={linkClass}>
         Dashboard
       </NavLink>
+      <NavLink to="/admin/issues" className={linkClass}>
+        Safety Issues
+      </NavLink>
       <NavLink to="/admin/reports" className={linkClass}>
         Reports
       </NavLink>

@@ -13,11 +13,22 @@ export type SiteUpsertInput = {
 }
 
 type SiteRowWithCount = Site & {
-  site_assignments: { count: number }[] | null
+  site_assignments:
+    | { count: number }[]
+    | { id: string; unassigned_at?: string | null }[]
+    | null
 }
 
 function mapSiteWithCount(row: SiteRowWithCount): SiteWithAssignmentCount {
-  const count = row.site_assignments?.[0]?.count ?? 0
+  const assignments = row.site_assignments ?? []
+  let count = 0
+  if (assignments.length > 0 && 'count' in assignments[0]) {
+    count = (assignments[0] as { count: number }).count ?? 0
+  } else {
+    count = (
+      assignments as { id: string; unassigned_at?: string | null }[]
+    ).filter((a) => !a.unassigned_at).length
+  }
   const { site_assignments: _ignored, ...site } = row
   return { ...site, assignment_count: count }
 }
@@ -52,19 +63,39 @@ export async function listAdminSites(): Promise<{
   data: SiteWithAssignmentCount[]
   error: string | null
 }> {
-  const { data, error } = await supabase
+  const withHistory = await supabase
     .from('sites')
     .select(
-      'id, name, address, is_active, created_at, updated_at, site_assignments(count)',
+      'id, name, address, is_active, created_at, updated_at, site_assignments(id, unassigned_at)',
     )
     .order('name', { ascending: true })
 
-  if (error) {
-    return { data: [], error: humanizeDbError(error.message) }
+  if (
+    withHistory.error &&
+    (withHistory.error.message.includes('unassigned_at') ||
+      withHistory.error.message.includes('schema cache'))
+  ) {
+    const legacy = await supabase
+      .from('sites')
+      .select(
+        'id, name, address, is_active, created_at, updated_at, site_assignments(count)',
+      )
+      .order('name', { ascending: true })
+    if (legacy.error) {
+      return { data: [], error: humanizeDbError(legacy.error.message) }
+    }
+    return {
+      data: ((legacy.data ?? []) as SiteRowWithCount[]).map(mapSiteWithCount),
+      error: null,
+    }
+  }
+
+  if (withHistory.error) {
+    return { data: [], error: humanizeDbError(withHistory.error.message) }
   }
 
   return {
-    data: ((data ?? []) as SiteRowWithCount[]).map(mapSiteWithCount),
+    data: ((withHistory.data ?? []) as SiteRowWithCount[]).map(mapSiteWithCount),
     error: null,
   }
 }
@@ -124,13 +155,37 @@ export async function updateSite(
 export async function listSiteAssignments(
   siteId: string,
 ): Promise<{ data: SiteAssignmentWithFramer[]; error: string | null }> {
-  const { data, error } = await supabase
+  const withHistory = await supabase
     .from('site_assignments')
     .select(
-      'id, site_id, framer_id, assigned_at, framer:profiles!site_assignments_framer_id_fkey ( id, display_name )',
+      'id, site_id, framer_id, assigned_at, unassigned_at, framer:profiles!site_assignments_framer_id_fkey ( id, display_name )',
     )
     .eq('site_id', siteId)
+    .is('unassigned_at', null)
     .order('assigned_at', { ascending: true })
+
+  let data = withHistory.data
+  let error = withHistory.error
+
+  // Part 8 not applied — legacy active rows (hard delete model).
+  if (
+    error &&
+    (error.message.includes('unassigned_at') ||
+      error.message.includes('schema cache'))
+  ) {
+    const legacy = await supabase
+      .from('site_assignments')
+      .select(
+        'id, site_id, framer_id, assigned_at, framer:profiles!site_assignments_framer_id_fkey ( id, display_name )',
+      )
+      .eq('site_id', siteId)
+      .order('assigned_at', { ascending: true })
+    data = (legacy.data ?? []).map((row) => ({
+      ...row,
+      unassigned_at: null,
+    })) as typeof data
+    error = legacy.error
+  }
 
   if (error) {
     return { data: [], error: humanizeDbError(error.message) }
@@ -142,7 +197,11 @@ export async function listSiteAssignments(
       framer && Array.isArray(framer)
         ? (framer[0] ?? null)
         : (framer as SiteAssignmentWithFramer['framer'])
-    return { ...row, framer: normalized }
+    return {
+      ...row,
+      unassigned_at: row.unassigned_at ?? null,
+      framer: normalized,
+    }
   })
 
   return { data: rows as SiteAssignmentWithFramer[], error: null }
@@ -170,16 +229,32 @@ export async function assignFramerToSite(
 export async function removeSiteAssignment(
   assignmentId: string,
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase
+  // Soft-unassign when Part 8 is present; hard-delete as fallback.
+  const soft = await supabase
     .from('site_assignments')
-    .delete()
+    .update({ unassigned_at: new Date().toISOString() })
     .eq('id', assignmentId)
+    .is('unassigned_at', null)
 
-  if (error) {
-    return { error: humanizeDbError(error.message) }
+  if (!soft.error) {
+    return { error: null }
   }
 
-  return { error: null }
+  if (
+    soft.error.message.includes('unassigned_at') ||
+    soft.error.message.includes('schema cache')
+  ) {
+    const { error } = await supabase
+      .from('site_assignments')
+      .delete()
+      .eq('id', assignmentId)
+    if (error) {
+      return { error: humanizeDbError(error.message) }
+    }
+    return { error: null }
+  }
+
+  return { error: humanizeDbError(soft.error.message) }
 }
 
 /** Requires migration admin_list_framers (admin-only RPC). */

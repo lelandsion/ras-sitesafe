@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
+  ClipboardCheck,
   FileWarning,
   LogOut,
   MapPin,
@@ -193,6 +195,13 @@ export function AdminSitesPage() {
                     </p>
                   </div>
                   <div className="admin-row__actions admin-row__actions--site">
+                    <Link
+                      to={`/admin/sites/${site.id}/compliance`}
+                      className="btn btn--ghost touch-target"
+                    >
+                      <ClipboardCheck size={20} strokeWidth={2.25} aria-hidden />
+                      Daily Compliance
+                    </Link>
                     <button
                       type="button"
                       className="btn btn--ghost touch-target"

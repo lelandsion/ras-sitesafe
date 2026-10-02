@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -39,11 +39,17 @@ import {
   uniqueSitesFromSubmissions,
   uniqueWorkersFromSubmissions,
 } from '../../lib/filterSubmissions'
+import { localDateISO } from '../../lib/dailyCompliance'
+import {
+  loadTodayComplianceOverview,
+  type SiteComplianceOverview,
+} from '../../services/complianceService'
 import { listSubmissionPhotos } from '../../services/photosService'
 import {
   listAdminSubmissions,
   reviewSubmission,
 } from '../../services/submissionsService'
+import type { ComplianceSummary } from '../../lib/dailyCompliance'
 import type {
   SubmissionStatus,
   SubmissionWithDetails,
@@ -95,6 +101,7 @@ const STATUS_FILTER_OPTIONS: Array<SubmissionStatus | 'all'> = [
 ]
 
 export function AdminHomePage() {
+  const navigate = useNavigate()
   const { profile, user, signOut } = useAuth()
   const [items, setItems] = useState<SubmissionWithDetails[]>([])
   const [filters, setFilters] = useState<SubmissionListFilters>(
@@ -104,17 +111,31 @@ export function AdminHomePage() {
   const [error, setError] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [todayOverall, setTodayOverall] = useState<ComplianceSummary>({
+    assigned: 0,
+    submitted: 0,
+    missing: 0,
+    issues: 0,
+  })
+  const [todaySites, setTodaySites] = useState<SiteComplianceOverview[]>([])
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     setActionError(null)
-    const { data, error: listError } = await listAdminSubmissions()
+    const [{ data, error: listError }, compliance] = await Promise.all([
+      listAdminSubmissions(),
+      loadTodayComplianceOverview(localDateISO()),
+    ])
     if (listError) {
       setError(listError)
       setItems([])
     } else {
       setItems(data)
+    }
+    if (!compliance.error) {
+      setTodayOverall(compliance.overall)
+      setTodaySites(compliance.sites)
     }
     setLoading(false)
   }, [])
@@ -337,6 +358,62 @@ export function AdminHomePage() {
                     <p className="admin-metrics__label">Checks submitted</p>
                   </div>
                 </div>
+              </div>
+
+              <div
+                className="today-compliance"
+                aria-label="Today's compliance"
+              >
+                <div className="today-compliance__head">
+                  <h3 className="today-compliance__title">
+                    Today&apos;s compliance
+                  </h3>
+                  <p className="today-compliance__overall">
+                    {todayOverall.submitted}/{todayOverall.assigned} submitted
+                    {todayOverall.missing > 0
+                      ? ` · ${todayOverall.missing} missing`
+                      : ''}
+                  </p>
+                </div>
+                {todaySites.length === 0 ? (
+                  <p className="admin-panel__empty">
+                    No active site assignments for today.
+                  </p>
+                ) : (
+                  <ul className="today-compliance__list">
+                    {todaySites.map((site) => (
+                      <li key={site.siteId} className="today-compliance__row">
+                        <div>
+                          <p className="today-compliance__site">
+                            {site.siteName}
+                          </p>
+                          <p className="today-compliance__meta">
+                            {site.summary.submitted}/{site.summary.assigned}{' '}
+                            submitted
+                            {site.summary.issues > 0
+                              ? ` · ${site.summary.issues} with issues`
+                              : ''}
+                          </p>
+                        </div>
+                        {site.summary.missing > 0 ? (
+                          <Link
+                            to={`/admin/sites/${site.siteId}/compliance?filter=missing&date=${localDateISO()}`}
+                            className="today-compliance__missing touch-target"
+                          >
+                            Missing {site.summary.missing} →
+                          </Link>
+                        ) : (
+                          <Link
+                            to={`/admin/sites/${site.siteId}/compliance?date=${localDateISO()}`}
+                            className="today-compliance__ok touch-target"
+                          >
+                            View →
+                          </Link>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               <div className="admin-report-grid">
@@ -567,10 +644,33 @@ export function AdminHomePage() {
                           const issueCount = countStructuredIssues(c)
                           const busy = updatingId === item.id
                           const canReview = item.status !== 'draft'
+                          const detailPath =
+                            item.status === 'draft'
+                              ? `/admin/submissions/${item.id}`
+                              : `/admin/submissions/${item.id}/preview`
                           return (
-                            <tr key={item.id}>
+                            <tr
+                              key={item.id}
+                              className="admin-table__row--clickable"
+                              onClick={(e) => {
+                                const target = e.target as HTMLElement
+                                if (
+                                  target.closest(
+                                    'a, button, select, textarea, input, label',
+                                  )
+                                ) {
+                                  return
+                                }
+                                void navigate(detailPath)
+                              }}
+                            >
                               <td>
-                                <strong>{item.sites?.name ?? '—'}</strong>
+                                <Link
+                                  to={detailPath}
+                                  className="admin-table__site-link"
+                                >
+                                  <strong>{item.sites?.name ?? '—'}</strong>
+                                </Link>
                                 {item.notes?.trim() && (
                                   <p className="admin-table__note">{item.notes}</p>
                                 )}
