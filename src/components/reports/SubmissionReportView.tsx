@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { PhotoLightbox } from '../ui/PhotoLightbox'
 import {
   HAZARD_SEVERITY_LABELS,
   parseDailySafetyChecklist,
@@ -64,6 +65,7 @@ function ReportPhotoGrid({
   photos: SubmissionPhoto[]
 }) {
   const [urls, setUrls] = useState<Record<string, string>>({})
+  const [activeId, setActiveId] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -82,6 +84,8 @@ function ReportPhotoGrid({
 
   if (photos.length === 0) return null
 
+  const zoomSrc = activeId ? urls[activeId] : null
+
   return (
     <section className="report-section report-section--photos">
       <h3 className="report-section__title">{title}</h3>
@@ -89,13 +93,32 @@ function ReportPhotoGrid({
         {photos.map((photo) => (
           <li key={photo.id} className="report-photo-grid__item">
             {urls[photo.id] ? (
-              <img src={urls[photo.id]} alt="" className="report-photo-grid__img" />
+              <button
+                type="button"
+                className="report-photo-grid__zoom"
+                onClick={() => setActiveId(photo.id)}
+                aria-label={`View ${title} larger`}
+              >
+                <img
+                  src={urls[photo.id]}
+                  alt=""
+                  className="report-photo-grid__img"
+                />
+              </button>
             ) : (
               <div className="report-photo-grid__placeholder" aria-hidden />
             )}
           </li>
         ))}
       </ul>
+      {zoomSrc && (
+        <PhotoLightbox
+          src={zoomSrc}
+          alt={`${title} preview`}
+          open={Boolean(activeId)}
+          onClose={() => setActiveId(null)}
+        />
+      )}
     </section>
   )
 }

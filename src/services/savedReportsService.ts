@@ -1,13 +1,22 @@
 import { supabase } from '../lib/supabase'
+import { emptyAggregateSummary } from '../lib/periodStats'
 import { humanizeDbError } from './sitesService'
 import type {
   ReportIncludeOptions,
   SavedReport,
   SavedReportSummary,
+  TopIssueCount,
 } from '../types/savedReport'
 import { DEFAULT_REPORT_INCLUDES } from '../types/savedReport'
 
 const DEMO_STORAGE_KEY = 'ras-sitesafe-demo-saved-reports'
+
+const TOP_NAMES: TopIssueCount['name'][] = [
+  'Fall Protection',
+  'PPE',
+  'Housekeeping',
+  'Tools',
+]
 
 function parseOptions(raw: unknown): ReportIncludeOptions {
   if (!raw || typeof raw !== 'object') return { ...DEFAULT_REPORT_INCLUDES }
@@ -21,21 +30,51 @@ function parseOptions(raw: unknown): ReportIncludeOptions {
   }
 }
 
-function parseSummary(raw: unknown): SavedReportSummary {
-  if (!raw || typeof raw !== 'object') {
-    return {
-      submissionCount: 0,
-      avgCompliance: null,
-      hazardCount: 0,
-      incidentCount: 0,
-      openIssueCount: 0,
-      issueLines: [],
-      correctiveLines: [],
-      photoCount: 0,
-      generatedAt: new Date().toISOString(),
-    }
+function parseTopIssues(raw: unknown): TopIssueCount[] {
+  const defaults = TOP_NAMES.map((name) => ({ name, count: 0 }))
+  if (!Array.isArray(raw)) return defaults
+  const map = new Map<string, number>()
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const row = item as Record<string, unknown>
+    const name = String(row.name ?? '')
+    map.set(name, Number(row.count ?? 0))
   }
+  return TOP_NAMES.map((name) => ({
+    name,
+    count: map.get(name) ?? 0,
+  }))
+}
+
+function parseSeries(
+  raw: unknown,
+  valueKey: 'compliance' | 'issues',
+): { date: string; compliance: number; issues: number }[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null
+      const row = item as Record<string, unknown>
+      const date = String(row.date ?? '')
+      if (!date) return null
+      return {
+        date,
+        compliance: Number(row.compliance ?? 0),
+        issues: Number(row.issues ?? 0),
+        [valueKey]: Number(row[valueKey] ?? 0),
+      }
+    })
+    .filter((x): x is { date: string; compliance: number; issues: number } => Boolean(x))
+}
+
+function parseSummary(raw: unknown): SavedReportSummary {
+  const empty = emptyAggregateSummary()
+  if (!raw || typeof raw !== 'object') return empty
   const s = raw as Record<string, unknown>
+  const issueLines = Array.isArray(s.issueLines) ? (s.issueLines as string[]) : []
+  const notable = Array.isArray(s.notableIssues)
+    ? (s.notableIssues as string[])
+    : issueLines
   return {
     submissionCount: Number(s.submissionCount ?? 0),
     avgCompliance:
@@ -45,12 +84,35 @@ function parseSummary(raw: unknown): SavedReportSummary {
     hazardCount: Number(s.hazardCount ?? 0),
     incidentCount: Number(s.incidentCount ?? 0),
     openIssueCount: Number(s.openIssueCount ?? 0),
-    issueLines: Array.isArray(s.issueLines) ? (s.issueLines as string[]) : [],
+    issueLines,
     correctiveLines: Array.isArray(s.correctiveLines)
       ? (s.correctiveLines as string[])
       : [],
     photoCount: Number(s.photoCount ?? 0),
     generatedAt: String(s.generatedAt ?? new Date().toISOString()),
+    expectedSubmissions: Number(s.expectedSubmissions ?? s.submissionCount ?? 0),
+    missingSubmissions: Number(s.missingSubmissions ?? 0),
+    completionPct:
+      s.completionPct === null || s.completionPct === undefined
+        ? s.avgCompliance === null || s.avgCompliance === undefined
+          ? null
+          : Number(s.avgCompliance)
+        : Number(s.completionPct),
+    expectedIsEstimate: s.expectedIsEstimate !== false,
+    safetyIssueCount: Number(s.safetyIssueCount ?? s.openIssueCount ?? 0),
+    highPriorityCount: Number(s.highPriorityCount ?? 0),
+    nearMissCount: Number(s.nearMissCount ?? s.incidentCount ?? 0),
+    resolvedIssueCount: Number(s.resolvedIssueCount ?? 0),
+    topIssues: parseTopIssues(s.topIssues),
+    complianceSeries: parseSeries(s.complianceSeries, 'compliance').map((r) => ({
+      date: r.date,
+      compliance: r.compliance,
+    })),
+    issuesSeries: parseSeries(s.issuesSeries, 'issues').map((r) => ({
+      date: r.date,
+      issues: r.issues,
+    })),
+    notableIssues: notable,
   }
 }
 
@@ -75,7 +137,11 @@ function demoReports(): SavedReport[] {
     const raw = localStorage.getItem(DEMO_STORAGE_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw) as SavedReport[]
-    return Array.isArray(parsed) ? parsed : []
+    return Array.isArray(parsed) ? parsed.map((r) => ({
+      ...r,
+      summary: parseSummary(r.summary),
+      options: parseOptions(r.options),
+    })) : []
   } catch {
     return []
   }
@@ -103,6 +169,7 @@ export function seedDemoSavedReportsIfEmpty(siteNames: string[]): void {
       title: 'Monthly Safety Report',
       options: { ...DEFAULT_REPORT_INCLUDES },
       summary: {
+        ...emptyAggregateSummary(),
         submissionCount: 18,
         avgCompliance: 92,
         hazardCount: 2,
@@ -111,6 +178,29 @@ export function seedDemoSavedReportsIfEmpty(siteNames: string[]): void {
         issueLines: ['PPE: Hard hat — No on 2 checks'],
         correctiveLines: ['Review PPE signage at site entrance.'],
         photoCount: 6,
+        expectedSubmissions: 22,
+        missingSubmissions: 4,
+        completionPct: 82,
+        expectedIsEstimate: true,
+        safetyIssueCount: 8,
+        highPriorityCount: 1,
+        nearMissCount: 0,
+        resolvedIssueCount: 5,
+        topIssues: [
+          { name: 'Fall Protection', count: 3 },
+          { name: 'PPE', count: 2 },
+          { name: 'Housekeeping', count: 2 },
+          { name: 'Tools', count: 1 },
+        ],
+        complianceSeries: [
+          { date: '2026-10-06', compliance: 90 },
+          { date: '2026-10-13', compliance: 93 },
+        ],
+        issuesSeries: [
+          { date: '2026-10-06', issues: 2 },
+          { date: '2026-10-13', issues: 1 },
+        ],
+        notableIssues: ['PPE: Hard hat — No on 2 checks'],
         generatedAt: now.toISOString(),
       },
       created_at: now.toISOString(),
@@ -128,14 +218,27 @@ export function seedDemoSavedReportsIfEmpty(siteNames: string[]): void {
       title: 'Monthly Safety Report',
       options: { ...DEFAULT_REPORT_INCLUDES },
       summary: {
+        ...emptyAggregateSummary(),
         submissionCount: 14,
         avgCompliance: 88,
         hazardCount: 1,
         incidentCount: 1,
         openIssueCount: 2,
-        issueLines: [],
-        correctiveLines: [],
         photoCount: 4,
+        expectedSubmissions: 20,
+        missingSubmissions: 6,
+        completionPct: 70,
+        expectedIsEstimate: true,
+        safetyIssueCount: 5,
+        highPriorityCount: 0,
+        nearMissCount: 1,
+        resolvedIssueCount: 3,
+        topIssues: [
+          { name: 'Fall Protection', count: 1 },
+          { name: 'PPE', count: 1 },
+          { name: 'Housekeeping', count: 1 },
+          { name: 'Tools', count: 0 },
+        ],
         generatedAt: prev.toISOString(),
       },
       created_at: prev.toISOString(),

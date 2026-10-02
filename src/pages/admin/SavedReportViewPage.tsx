@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, FileDown } from 'lucide-react'
+import { AggregateReportView } from '../../components/admin/AggregateReportView'
 import { AdminNav } from '../../components/admin/AdminNav'
 import { AppHeader } from '../../components/layout/AppHeader'
 import { exportPeriodReportPdf } from '../../lib/exportPeriodReportPdf'
+import { monthBounds } from '../../lib/periodStats'
 import { getSavedReport } from '../../services/savedReportsService'
-import { periodLabel, type SavedReport } from '../../types/savedReport'
+import type { SavedReport } from '../../types/savedReport'
 
 export function SavedReportViewPage() {
   const { id } = useParams<{ id: string }>()
@@ -33,6 +35,11 @@ export function SavedReportViewPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  const bounds = useMemo(() => {
+    if (!report) return null
+    return monthBounds(report.period_year, report.period_month)
+  }, [report])
 
   function onExport() {
     if (!report) return
@@ -81,89 +88,21 @@ export function SavedReportViewPage() {
             </p>
           )}
 
-          {!loading && report && (
-            <article className="report-document">
-              <header className="report-document__header">
-                <p className="report-document__brand">RAS SiteSafe</p>
-                <h1 id="saved-report-title" className="report-document__title">
-                  {report.title}
-                </h1>
-                <dl className="report-meta">
-                  <div>
-                    <dt>Site</dt>
-                    <dd>{report.site_name}</dd>
-                  </div>
-                  <div>
-                    <dt>Period</dt>
-                    <dd>{periodLabel(report.period_year, report.period_month)}</dd>
-                  </div>
-                  <div>
-                    <dt>Generated</dt>
-                    <dd>{new Date(report.summary.generatedAt).toLocaleString()}</dd>
-                  </div>
-                </dl>
-              </header>
-
-              {report.options.safetySummary && (
-                <section className="report-section">
-                  <h3 className="report-section__title">Safety summary</h3>
-                  <p className="report-line">
-                    Daily checks: {report.summary.submissionCount}
-                  </p>
-                  <p className="report-line">
-                    Avg compliance:{' '}
-                    {report.summary.avgCompliance !== null
-                      ? `${report.summary.avgCompliance}%`
-                      : '—'}
-                  </p>
-                  <p className="report-line">Hazards: {report.summary.hazardCount}</p>
-                  <p className="report-line">
-                    Incidents: {report.summary.incidentCount}
-                  </p>
-                </section>
-              )}
-
-              {report.options.submissionCompliance && (
-                <section className="report-section">
-                  <h3 className="report-section__title">Submission compliance</h3>
-                  <p className="report-line">
-                    Open structured issues: {report.summary.openIssueCount}
-                  </p>
-                </section>
-              )}
-
-              {report.options.safetyIssues && report.summary.issueLines.length > 0 && (
-                <section className="report-section">
-                  <h3 className="report-section__title">Safety issues</h3>
-                  <ul className="account-list">
-                    {report.summary.issueLines.map((line) => (
-                      <li key={line}>• {line}</li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-
-              {report.options.correctiveActions &&
-                report.summary.correctiveLines.length > 0 && (
-                  <section className="report-section">
-                    <h3 className="report-section__title">Corrective actions</h3>
-                    <ul className="account-list">
-                      {report.summary.correctiveLines.map((line) => (
-                        <li key={line}>• {line}</li>
-                      ))}
-                    </ul>
-                  </section>
-                )}
-
-              {report.options.photos && (
-                <section className="report-section">
-                  <h3 className="report-section__title">Photos</h3>
-                  <p className="report-line">
-                    {report.summary.photoCount} photo(s) on checks in this period.
-                  </p>
-                </section>
-              )}
-            </article>
+          {!loading && report && bounds && (
+            <>
+              <h2 id="saved-report-title" className="visually-hidden">
+                Saved safety report
+              </h2>
+              <AggregateReportView
+                siteName={report.site_name}
+                year={report.period_year}
+                month={report.period_month}
+                fromDate={bounds.fromDate}
+                toDate={bounds.toDate}
+                options={report.options}
+                summary={report.summary}
+              />
+            </>
           )}
         </section>
       </main>

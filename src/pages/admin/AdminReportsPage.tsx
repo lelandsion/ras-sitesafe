@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FileBarChart, RefreshCw } from 'lucide-react'
+import { AggregateReportView } from '../../components/admin/AggregateReportView'
 import { AdminNav } from '../../components/admin/AdminNav'
 import { AppHeader } from '../../components/layout/AppHeader'
 import { useAuth } from '../../hooks/auth-context'
 import { buildPeriodReportSummary } from '../../lib/buildPeriodReport'
 import { exportPeriodReportPdf } from '../../lib/exportPeriodReportPdf'
+import { defaultPeriodRange, monthBounds } from '../../lib/periodStats'
 import { listAdminSites } from '../../services/sitesService'
 import {
   createSavedReport,
@@ -19,24 +21,8 @@ import {
   periodLabel,
   type ReportIncludeOptions,
   type SavedReport,
+  type SavedReportSummary,
 } from '../../types/savedReport'
-
-function monthOptions(): { value: string; label: string; year: number; month: number }[] {
-  const out: { value: string; label: string; year: number; month: number }[] = []
-  const now = new Date()
-  for (let i = 0; i < 12; i += 1) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const year = d.getFullYear()
-    const month = d.getMonth() + 1
-    out.push({
-      value: `${year}-${month}`,
-      label: periodLabel(year, month),
-      year,
-      month,
-    })
-  }
-  return out
-}
 
 type IncludeKey = keyof ReportIncludeOptions
 
@@ -48,12 +34,24 @@ const INCLUDE_LABELS: Record<IncludeKey, string> = {
   photos: 'Photos',
 }
 
+function periodFromDates(fromDate: string, toDate: string): {
+  year: number
+  month: number
+} {
+  const [y, m] = fromDate.split('-').map(Number)
+  if (y && m) return { year: y, month: m }
+  const [y2, m2] = toDate.split('-').map(Number)
+  return { year: y2 || new Date().getFullYear(), month: m2 || 1 }
+}
+
 export function AdminReportsPage() {
   const { user } = useAuth()
+  const defaults = useMemo(() => defaultPeriodRange(), [])
   const [sites, setSites] = useState<Site[]>([])
   const [saved, setSaved] = useState<SavedReport[]>([])
   const [siteId, setSiteId] = useState('')
-  const [periodValue, setPeriodValue] = useState(monthOptions()[0]?.value ?? '')
+  const [fromDate, setFromDate] = useState(defaults.fromDate)
+  const [toDate, setToDate] = useState(defaults.toDate)
   const [includes, setIncludes] = useState<ReportIncludeOptions>({
     ...DEFAULT_REPORT_INCLUDES,
   })
@@ -61,8 +59,15 @@ export function AdminReportsPage() {
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
-
-  const periods = useMemo(() => monthOptions(), [])
+  const [preview, setPreview] = useState<{
+    siteName: string
+    year: number
+    month: number
+    fromDate: string
+    toDate: string
+    summary: SavedReportSummary
+    usedDemoFallback: boolean
+  } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -75,7 +80,13 @@ export function AdminReportsPage() {
     }
     const active = sitesResult.data.filter((s) => s.is_active)
     setSites(active)
-    setSiteId((prev) => prev || active[0]?.id || '')
+    setSiteId((prev) => {
+      if (prev && active.some((s) => s.id === prev)) return prev
+      const royal = active.find((s) =>
+        s.name.toLowerCase().includes('royal commons'),
+      )
+      return royal?.id || active[0]?.id || ''
+    })
 
     seedDemoSavedReportsIfEmpty(active.map((s) => s.name))
     const listResult = await listSavedReports()
@@ -91,23 +102,59 @@ export function AdminReportsPage() {
     void load()
   }, [load])
 
+  function onMonthPresetChange(value: string) {
+    const [ys, ms] = value.split('-').map(Number)
+    if (!ys || !ms) return
+    const bounds = monthBounds(ys, ms)
+    setFromDate(bounds.fromDate)
+    setToDate(bounds.toDate)
+  }
+
+  const monthPreset = useMemo(() => {
+    const { year, month } = periodFromDates(fromDate, toDate)
+    return `${year}-${month}`
+  }, [fromDate, toDate])
+
+  const monthOptions = useMemo(() => {
+    const out: { value: string; label: string }[] = []
+    const now = new Date()
+    for (let i = 0; i < 12; i += 1) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const year = d.getFullYear()
+      const month = d.getMonth() + 1
+      out.push({
+        value: `${year}-${month}`,
+        label: periodLabel(year, month),
+      })
+    }
+    return out
+  }, [])
+
   async function onGenerate() {
     if (!user?.id || !siteId) return
     const site = sites.find((s) => s.id === siteId)
     if (!site) return
-    const period = periods.find((p) => p.value === periodValue) ?? periods[0]
-    if (!period) return
+    if (fromDate > toDate) {
+      setError('Period start must be on or before the end date.')
+      return
+    }
+
+    const { year, month } = periodFromDates(fromDate, toDate)
 
     setGenerating(true)
     setError(null)
     setInfo(null)
 
     try {
-      const { summary } = await buildPeriodReportSummary({
+      const { summary, usedDemoFallback } = await buildPeriodReportSummary({
         siteId,
-        year: period.year,
-        month: period.month,
+        siteName: site.name,
+        year,
+        month,
+        fromDate,
+        toDate,
         options: includes,
+        allowDemoFallback: true,
       })
 
       const title = 'Monthly Safety Report'
@@ -115,8 +162,8 @@ export function AdminReportsPage() {
         createdBy: user.id,
         siteId,
         siteName: site.name,
-        periodYear: period.year,
-        periodMonth: period.month,
+        periodYear: year,
+        periodMonth: month,
         title,
         options: includes,
         summary,
@@ -128,17 +175,31 @@ export function AdminReportsPage() {
         return
       }
 
+      setPreview({
+        siteName: site.name,
+        year,
+        month,
+        fromDate,
+        toDate,
+        summary,
+        usedDemoFallback,
+      })
+
       exportPeriodReportPdf({
         siteName: site.name,
-        year: period.year,
-        month: period.month,
+        year,
+        month,
         title,
         options: includes,
         summary,
       })
 
       setSaved((prev) => [data, ...prev.filter((r) => r.id !== data.id)])
-      setInfo('Report generated and saved.')
+      setInfo(
+        usedDemoFallback
+          ? 'Report generated with demo aggregate stats (no live submissions in range) and saved.'
+          : 'Report generated from live submissions and saved.',
+      )
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not generate report.')
     }
@@ -155,7 +216,7 @@ export function AdminReportsPage() {
               <p className="admin-dash__kicker">Admin</p>
               <h2 id="reports-title" className="admin-dash__title">
                 Reports
-                <span>Monthly site safety packages</span>
+                <span>Site period safety packages</span>
               </h2>
               <AdminNav />
             </div>
@@ -191,6 +252,7 @@ export function AdminReportsPage() {
                   value={siteId}
                   disabled={loading || sites.length === 0}
                   onChange={(e) => setSiteId(e.target.value)}
+                  data-testid="report-site"
                 >
                   {sites.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -200,18 +262,44 @@ export function AdminReportsPage() {
                 </select>
               </label>
               <label className="safety-form__field">
-                <span>Reporting period</span>
+                <span>Month preset</span>
                 <select
                   className="safety-form__control touch-target"
-                  value={periodValue}
-                  onChange={(e) => setPeriodValue(e.target.value)}
+                  value={monthPreset}
+                  onChange={(e) => onMonthPresetChange(e.target.value)}
                 >
-                  {periods.map((p) => (
+                  {monthOptions.map((p) => (
                     <option key={p.value} value={p.value}>
                       {p.label}
                     </option>
                   ))}
                 </select>
+              </label>
+            </div>
+
+            <div className="report-period-row" data-testid="report-period">
+              <label className="safety-form__field">
+                <span>Period</span>
+                <input
+                  type="date"
+                  className="safety-form__control touch-target"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  data-testid="report-from"
+                />
+              </label>
+              <span className="report-period-row__sep" aria-hidden>
+                —
+              </span>
+              <label className="safety-form__field">
+                <span className="visually-hidden">Period end</span>
+                <input
+                  type="date"
+                  className="safety-form__control touch-target"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  data-testid="report-to"
+                />
               </label>
             </div>
 
@@ -236,11 +324,27 @@ export function AdminReportsPage() {
               className="btn btn--primary touch-target"
               disabled={generating || !siteId || loading}
               onClick={() => void onGenerate()}
+              data-testid="generate-report"
             >
               <FileBarChart size={20} strokeWidth={2.5} aria-hidden />
-              {generating ? 'Generating…' : 'Generate report'}
+              {generating ? 'Generating…' : 'Generate Report'}
             </button>
           </div>
+
+          {preview && (
+            <div className="admin-panel admin-panel--flush">
+              <AggregateReportView
+                siteName={preview.siteName}
+                year={preview.year}
+                month={preview.month}
+                fromDate={preview.fromDate}
+                toDate={preview.toDate}
+                options={includes}
+                summary={preview.summary}
+                usedDemoFallback={preview.usedDemoFallback}
+              />
+            </div>
+          )}
 
           <div className="admin-panel">
             <h3 className="admin-panel__title">Saved reports</h3>

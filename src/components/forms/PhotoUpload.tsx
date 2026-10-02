@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import { Camera, ImagePlus, Trash2 } from 'lucide-react'
+import { PhotoLightbox } from '../ui/PhotoLightbox'
 import {
   deleteSubmissionPhoto,
   getPhotoSignedUrl,
@@ -38,6 +39,7 @@ function PhotoThumb({
   onRemove: () => void
 }) {
   const [url, setUrl] = useState<string | null>(null)
+  const [zoomed, setZoomed] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -52,7 +54,14 @@ function PhotoThumb({
   return (
     <li className="photo-grid__item">
       {url ? (
-        <img src={url} alt="Submission photo" className="photo-grid__img" />
+        <button
+          type="button"
+          className="photo-grid__zoom"
+          onClick={() => setZoomed(true)}
+          aria-label="View photo larger"
+        >
+          <img src={url} alt="Submission photo" className="photo-grid__img" />
+        </button>
       ) : (
         <div className="photo-grid__placeholder" aria-hidden>
           <Camera size={22} strokeWidth={2.25} />
@@ -67,6 +76,14 @@ function PhotoThumb({
         >
           <Trash2 size={18} strokeWidth={2.5} aria-hidden />
         </button>
+      )}
+      {url && (
+        <PhotoLightbox
+          src={url}
+          alt="Submission photo"
+          open={zoomed}
+          onClose={() => setZoomed(false)}
+        />
       )}
     </li>
   )
