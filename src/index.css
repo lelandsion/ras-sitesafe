@@ -1,25 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
 :root {
-  /* Official RAS palette — extracted from rasltd.ca Squarespace site CSS + logo */
-  --ras-primary: #045339; /* site --accent-hsl 160.25 90.8% 17.06% */
+  /* Official RAS palette — rasltd.ca Squarespace site.css + logo sample */
+  --ras-primary: #045339; /* --accent-hsl: 160.25, 90.8%, 17.06% */
   --ras-primary-deep: #033d2a;
-  --ras-secondary: #085038; /* sampled from RAS green wordmark logo */
-  --ras-surface: #f7f7f7; /* site --lightAccent-hsl */
+  --ras-secondary: #0d553a; /* dominant green from RAS Logo_Updated May 2023 RGB */
+  --ras-surface: #f7f7f7; /* --lightAccent-hsl: 0, 0%, 96.86% */
   --ras-surface-raised: #ffffff;
   --ras-ink: #0e0e0e;
   --ras-muted: #3e3e3e;
   --ras-border: #d0d0d0;
-  --ras-charcoal: #2a2829; /* site --darkAccent-hsl */
+  --ras-charcoal: #2a2829; /* --darkAccent-hsl: 330, 2.44%, 16.08% */
   --ras-success: #045339;
   --ras-danger: #9b2c2c;
   --ras-warning: #b45309;
   --ras-on-primary: #ffffff;
-  --ras-touch-min: 48px; /* large touch targets for on-site phone use */
-  --ras-radius: 2px; /* squared / operational — matches chamfered RAS mark */
+  --ras-touch-min: 48px;
+  --ras-radius: 2px;
 
-  --sans: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* Purposeful type — not Inter / Roboto / Arial / system UI stacks */
+  --font-display: 'Oswald', 'Arial Narrow', sans-serif;
+  --font-body: 'Source Sans 3', 'Segoe UI', sans-serif;
 
-  font: 16px/1.45 var(--sans);
+  font: 17px/1.5 var(--font-body);
   color: var(--ras-ink);
   background: var(--ras-surface);
   font-synthesis: none;
@@ -44,6 +47,16 @@ body {
   min-height: 100svh;
 }
 
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 button,
 a,
 input,
@@ -55,4 +68,14 @@ textarea {
 .touch-target {
   min-height: var(--ras-touch-min);
   min-width: var(--ras-touch-min);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
