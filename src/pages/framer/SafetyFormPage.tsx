@@ -446,12 +446,17 @@ export function SafetyFormPage({
             </label>
 
             {user && (
-              <section className="check-section" aria-labelledby="site-photos-heading">
+              <section
+                className="check-section check-section--site-photos"
+                aria-labelledby="site-photos-heading"
+                data-testid="site-photos-section"
+              >
                 <h3 id="site-photos-heading" className="check-section__title">
                   Site photos
                 </h3>
                 <p className="check-section__lead">
-                  General jobsite photos — not tied to a hazard report.
+                  Always available — add general jobsite photos anytime. Hazard
+                  evidence belongs under Hazards below.
                 </p>
                 <PhotoUpload
                   userId={user.id}
@@ -462,7 +467,8 @@ export function SafetyFormPage({
                   disabled={!editable || saving}
                   blockedHint={photoAttachHint}
                   title="Site photos"
-                  triggerLabel="Add photo"
+                  showTitle={false}
+                  triggerLabel="Add site photo"
                   photoKind="site"
                 />
               </section>
@@ -690,7 +696,8 @@ export function SafetyFormPage({
                       disabled={!editable || saving}
                       blockedHint={photoAttachHint}
                       title="Hazard photos"
-                      triggerLabel="Add photo"
+                      showTitle
+                      triggerLabel="Add hazard photo"
                       photoKind="hazard"
                     />
                   )}

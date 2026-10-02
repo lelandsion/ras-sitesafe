@@ -8,6 +8,7 @@ import {
   Eye,
   FileDown,
   FileWarning,
+  FilterX,
   LogOut,
   RefreshCw,
   ShieldAlert,
@@ -30,6 +31,14 @@ import {
   type ChecklistSubmissionRow,
 } from '../../lib/checklistAnalytics'
 import { exportSubmissionToPdf } from '../../lib/exportSubmissionPdf'
+import {
+  countActiveFilters,
+  EMPTY_SUBMISSION_FILTERS,
+  filterSubmissions,
+  type SubmissionListFilters,
+  uniqueSitesFromSubmissions,
+  uniqueWorkersFromSubmissions,
+} from '../../lib/filterSubmissions'
 import { listSubmissionPhotos } from '../../services/photosService'
 import {
   listAdminSubmissions,
@@ -76,9 +85,21 @@ function toChecklistRows(items: SubmissionWithDetails[]): ChecklistSubmissionRow
   }))
 }
 
+const STATUS_FILTER_OPTIONS: Array<SubmissionStatus | 'all'> = [
+  'all',
+  'draft',
+  'submitted',
+  'under_review',
+  'approved',
+  'rejected',
+]
+
 export function AdminHomePage() {
   const { profile, user, signOut } = useAuth()
   const [items, setItems] = useState<SubmissionWithDetails[]>([])
+  const [filters, setFilters] = useState<SubmissionListFilters>(
+    EMPTY_SUBMISSION_FILTERS,
+  )
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
@@ -101,6 +122,18 @@ export function AdminHomePage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  const filteredItems = useMemo(
+    () => filterSubmissions(items, filters),
+    [items, filters],
+  )
+
+  const siteOptions = useMemo(() => uniqueSitesFromSubmissions(items), [items])
+  const workerOptions = useMemo(
+    () => uniqueWorkersFromSubmissions(items),
+    [items],
+  )
+  const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters])
 
   const checklistRows = useMemo(() => toChecklistRows(items), [items])
 
@@ -364,10 +397,154 @@ export function AdminHomePage() {
                   {reviewCounts.approved} · Rejected: {reviewCounts.rejected}
                 </p>
 
+                <form
+                  className="submission-filters"
+                  aria-label="Filter submissions"
+                  onSubmit={(e) => e.preventDefault()}
+                >
+                  <div className="submission-filters__grid">
+                    <label className="submission-filters__field">
+                      <span>Site</span>
+                      <select
+                        className="safety-form__control touch-target"
+                        value={filters.siteId}
+                        onChange={(e) =>
+                          setFilters((f) => ({ ...f, siteId: e.target.value }))
+                        }
+                      >
+                        <option value="">All sites</option>
+                        {siteOptions.map((site) => (
+                          <option key={site.id} value={site.id}>
+                            {site.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="submission-filters__field">
+                      <span>Worker</span>
+                      <select
+                        className="safety-form__control touch-target"
+                        value={filters.workerId}
+                        onChange={(e) =>
+                          setFilters((f) => ({
+                            ...f,
+                            workerId: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">All workers</option>
+                        {workerOptions.map((worker) => (
+                          <option key={worker.id} value={worker.id}>
+                            {worker.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="submission-filters__field">
+                      <span>From date</span>
+                      <input
+                        type="date"
+                        className="safety-form__control touch-target"
+                        value={filters.dateFrom}
+                        onChange={(e) =>
+                          setFilters((f) => ({
+                            ...f,
+                            dateFrom: e.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="submission-filters__field">
+                      <span>To date</span>
+                      <input
+                        type="date"
+                        className="safety-form__control touch-target"
+                        value={filters.dateTo}
+                        onChange={(e) =>
+                          setFilters((f) => ({
+                            ...f,
+                            dateTo: e.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="submission-filters__field">
+                      <span>Issues</span>
+                      <select
+                        className="safety-form__control touch-target"
+                        value={filters.issues}
+                        onChange={(e) =>
+                          setFilters((f) => ({
+                            ...f,
+                            issues: e.target.value as SubmissionListFilters['issues'],
+                          }))
+                        }
+                      >
+                        <option value="all">All</option>
+                        <option value="has_issues">Has open issues</option>
+                        <option value="no_issues">No issues</option>
+                      </select>
+                    </label>
+                    <label className="submission-filters__field">
+                      <span>Status</span>
+                      <select
+                        className="safety-form__control touch-target"
+                        value={filters.status}
+                        onChange={(e) =>
+                          setFilters((f) => ({
+                            ...f,
+                            status: e.target.value as SubmissionListFilters['status'],
+                          }))
+                        }
+                      >
+                        {STATUS_FILTER_OPTIONS.map((status) => (
+                          <option key={status} value={status}>
+                            {status === 'all'
+                              ? 'All statuses'
+                              : SUBMISSION_STATUS_LABELS[status]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="submission-filters__bar">
+                    <p className="submission-filters__count">
+                      Showing {filteredItems.length} of {items.length}
+                      {activeFilterCount > 0
+                        ? ` · ${activeFilterCount} filter${activeFilterCount === 1 ? '' : 's'} on`
+                        : ''}
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn--ghost touch-target"
+                      disabled={activeFilterCount === 0}
+                      onClick={() => setFilters(EMPTY_SUBMISSION_FILTERS)}
+                    >
+                      <FilterX size={18} strokeWidth={2.5} aria-hidden />
+                      Clear filters
+                    </button>
+                  </div>
+                </form>
+
                 {items.length === 0 ? (
                   <p className="admin-panel__empty">
                     No daily safety checks yet. Framers submit from the field.
                   </p>
+                ) : filteredItems.length === 0 ? (
+                  <div
+                    className="admin-panel__empty admin-panel__empty--filtered"
+                    role="status"
+                  >
+                    <p>No submissions match these filters.</p>
+                    <button
+                      type="button"
+                      className="btn btn--ghost touch-target"
+                      onClick={() => setFilters(EMPTY_SUBMISSION_FILTERS)}
+                    >
+                      <FilterX size={18} strokeWidth={2.5} aria-hidden />
+                      Clear filters
+                    </button>
+                  </div>
                 ) : (
                   <div className="admin-table-wrap">
                     <table className="admin-table">
@@ -382,7 +559,7 @@ export function AdminHomePage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {items.map((item) => {
+                        {filteredItems.map((item) => {
                           const c = parseDailySafetyChecklist(
                             item.checklist,
                             item.created_at.slice(0, 10),

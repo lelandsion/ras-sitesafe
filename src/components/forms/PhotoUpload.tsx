@@ -22,6 +22,8 @@ type Props = {
   disabled?: boolean
   blockedHint?: string | null
   title?: string
+  /** When false, omit the inner title (parent section already labels it). */
+  showTitle?: boolean
   triggerLabel?: string
   photoKind?: SubmissionPhotoKind
 }
@@ -79,6 +81,7 @@ export function PhotoUpload({
   disabled,
   blockedHint,
   title = 'Site photos',
+  showTitle = true,
   triggerLabel = 'Add photos',
   photoKind = 'site',
 }: Props) {
@@ -151,9 +154,10 @@ export function PhotoUpload({
   return (
     <div className="photo-upload">
       <div className="photo-upload__header">
-        <h3 className="photo-upload__title">{title}</h3>
+        {showTitle ? <h3 className="photo-upload__title">{title}</h3> : null}
         <p className="photo-upload__hint">
           JPEG, PNG, or WebP · max {maxMb} MB each
+          {photoKind === 'site' ? ' · not tied to a hazard' : ''}
         </p>
       </div>
 
