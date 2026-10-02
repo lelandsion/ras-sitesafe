@@ -1,65 +1,133 @@
 # RAS SiteSafe
 
-Mobile-first construction safety form and compliance dashboard built for **Ron Anderson & Sons**.
+**Mobile-first site safety form + compliance dashboard** for [Ron Anderson & Sons](https://www.ronandersonandsons.com/) — built as a junior developer technical assessment.
 
-Living foundation plan (assessment checklist & build order): see the Project store doc `docs/foundation-plan.md` in the Cursor Project context. Keep that checklist updated as milestones land.
+Framers submit jobsite safety checks (with photos) from a phone. Admins review submissions and track compliance from a dashboard with charts.
+
+| | |
+| --- | --- |
+| **Live app** | **[https://ras-sitesafe.vercel.app](https://ras-sitesafe.vercel.app)** |
+| **Repository** | [https://github.com/lelandsion/ras-sitesafe](https://github.com/lelandsion/ras-sitesafe) |
+
+---
 
 ## Tech stack
 
-- Vite + React + TypeScript
-- Supabase (Auth, Postgres, Storage)
-- React Router
-- Recharts (dashboard — after login milestone)
-- Lucide React
+| Layer | Choice |
+| --- | --- |
+| UI | React + TypeScript |
+| Build | Vite |
+| Backend | Supabase (Auth, Postgres, Storage) |
+| Routing | React Router |
+| Charts | Recharts |
+| Icons | Lucide |
+| Hosting | Vercel |
 
-## Setup
+---
+
+## Features
+
+- **Login & roles** — Supabase Auth; route guards for `admin` and `framer` (no public sign-up)
+- **Framer flow** — assigned sites, safety form, JPEG/PNG/WebP photo upload to private Storage
+- **Admin dashboard** — submission list, status review, Recharts status breakdown
+
+---
+
+## Test credentials
+
+Demo accounts for assessors (fictional identities — not personal emails). Shared password for both:
+
+| Role | Name | Email | Password |
+| --- | --- | --- | --- |
+| Admin | Sarah Mitchell | `admin@ras-sitesafe-demo.com` | *(paste shared demo password here)* |
+| Framer | Daniel Ortiz | `framer@ras-sitesafe-demo.com` | *(same as above)* |
+
+> Seed Auth users in Supabase first — see [`docs/supabase-seed-notes.md`](docs/supabase-seed-notes.md).
+
+---
+
+## Setup / local development
 
 ```bash
+git clone https://github.com/lelandsion/ras-sitesafe.git
+cd ras-sitesafe
 npm install
 cp .env.example .env.local
-# Fill VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY from your Supabase project
+```
+
+Fill `.env.local` (never commit real values):
+
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-publishable-or-anon-key
+```
+
+Use the **publishable / anon** key only — never the service role key.
+
+```bash
 npm run dev
 ```
 
-Dev server defaults to port **4321** (`http://127.0.0.1:4321`).
+Dev server: [http://127.0.0.1:4321](http://127.0.0.1:4321) (port `4321` in `vite.config.ts`).
 
-## Assumptions
+## Testing
 
-- Supabase project already exists; wire URL + anon key via env (never commit secrets).
-- Roles live on `profiles.role`: `admin` | `framer`.
-- Official RAS logo must be sourced from RAS site/Instagram into `src/assets/branding/` (not invented).
-- Assessment demo accounts are fictional SiteSafe identities (not personal emails).
+```bash
+npm test          # Vitest watch mode
+npm run test:run  # single CI run
+```
 
-## Test Credentials
+Manual QA (landing, login, framer, admin, role isolation, deploy smoke): [`docs/test-plan.md`](docs/test-plan.md).
 
-| Role   | Name           | Email                         | Password                          |
-| ------ | -------------- | ----------------------------- | --------------------------------- |
-| Admin  | Sarah Mitchell | `admin@ras-sitesafe-demo.com` | *(set when seeding Supabase Auth)* |
-| Framer | Daniel Ortiz   | `framer@ras-sitesafe-demo.com`| *(set when seeding Supabase Auth)* |
+### Apply schema (once)
+
+1. Paste [`supabase/migrations/20261002000100_sitesafe_schema.sql`](supabase/migrations/20261002000100_sitesafe_schema.sql) in Supabase → **SQL Editor**, or
+2. `npx supabase login` → `npx supabase link` → `npx supabase db push`
+
+Then create the demo Auth users and optional sample site — steps in [`docs/supabase-seed-notes.md`](docs/supabase-seed-notes.md).
+
+---
 
 ## ERD
 
-- Target: [`docs/ras-sitesafe-erd.png`](docs/ras-sitesafe-erd.png) *(placeholder until schema/ERD milestone)*
-- See `docs/ras-sitesafe-erd.png.PLACEHOLDER.txt` until the diagram is exported.
+![RAS SiteSafe ERD](docs/ras-sitesafe-erd.png)
 
-## Deployed app
+- Diagram: [`docs/ras-sitesafe-erd.png`](docs/ras-sitesafe-erd.png)
+- Mermaid / notes: [`docs/ras-sitesafe-erd.md`](docs/ras-sitesafe-erd.md)
+- Schema + RLS + Storage: [`supabase/migrations/20261002000100_sitesafe_schema.sql`](supabase/migrations/20261002000100_sitesafe_schema.sql)
 
-- *(Vercel production URL — add after connecting GitHub → Vercel)*
+---
 
-## Create / push GitHub repo (if not done yet)
+## Assumptions
 
-```bash
-# After `gh auth login` (or create the empty repo on github.com first)
-gh repo create ras-sitesafe --public \
-  --description "Mobile-first construction safety form and compliance dashboard built for Ron Anderson & Sons." \
-  --source=. --remote=github --push
+- Internal RAS tool — accounts are provisioned by an admin; **no public sign-up**
+- Roles on `profiles.role`: **`admin` | `framer`** only
+- Postgres **RLS** on all app tables; photos in private bucket `submission-photos`
+- Photos: JPEG / PNG / WebP, max **~8 MiB** each
+- Official RAS logo sourced from RAS (not invented)
+- Demo emails are fictional assessment identities
+- Built for a Canadian construction-company assessment context (demo jobsite data)
+
+---
+
+## Project structure
+
+```
+src/
+  components/   # auth guards, layout, form photo upload, admin chart
+  pages/        # login, admin dashboard, framer home + safety form
+  hooks/        # AuthProvider / useAuth
+  services/     # sites, submissions, photos (Supabase client calls)
+  lib/          # supabase client
+  types/        # DB / domain types
+supabase/migrations/   # schema, enums, RLS, storage policies
+docs/                  # ERD, seed notes
 ```
 
-Or without `gh`:
+---
 
-```bash
-git remote add github https://github.com/<YOUR_USER>/ras-sitesafe.git
-git push -u github main
-```
+## Deploy
 
-Then import the repo in Vercel, set `VITE_SUPABASE_*` env vars, and paste the deploy URL above.
+Production is on Vercel: **[https://ras-sitesafe.vercel.app](https://ras-sitesafe.vercel.app)**
+
+SPA routes are rewritten via `vercel.json`. Required env vars (Production + Preview): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
