@@ -15,7 +15,7 @@ import { TriStateField } from '../../components/forms/TriStateField'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { useAuth } from '../../hooks/auth-context'
 import { exportSubmissionToPdf } from '../../lib/exportSubmissionPdf'
-import { listAdminSites, listAssignedSites } from '../../services/sitesService'
+import { listAssignedSites } from '../../services/sitesService'
 import {
   createSubmission,
   deleteDraftSubmission,
@@ -94,12 +94,10 @@ export function SafetyFormPage({
     setLoading(true)
     setError(null)
 
-    const sitesResult = isAdmin
-      ? await listAdminSites().then((r) => ({
-          ...r,
-          data: r.data.filter((s) => s.is_active),
-        }))
-      : await listAssignedSites()
+    // Admin and framer both use the active-sites query; RLS scopes rows.
+    // Avoid listAdminSites() here — its assignment-count embed is unrelated
+    // to the picker and can fail independently of whether sites exist.
+    const sitesResult = await listAssignedSites()
     if (sitesResult.error) {
       setError(sitesResult.error)
       setSites([])
@@ -142,7 +140,7 @@ export function SafetyFormPage({
     }
 
     setLoading(false)
-  }, [id, isAdmin, mode])
+  }, [id, mode])
 
   useEffect(() => {
     void load()
@@ -396,8 +394,22 @@ export function SafetyFormPage({
 
           {sites.length === 0 && (
             <p className="form-banner form-banner--warn" role="status">
-              No assigned jobsites yet. Ask an admin to assign you, or run{' '}
-              <code>supabase/seed/ras_jobsites.sql</code>.
+              {isAdmin ? (
+                <>
+                  No active jobsites yet. Admins see every site in{' '}
+                  <code>sites</code> (assignments not required). Create sites
+                  under{' '}
+                  <Link to="/admin/sites">Admin → Sites</Link>, or run{' '}
+                  <code>supabase/seed/ras_jobsites.sql</code>.
+                </>
+              ) : (
+                <>
+                  No assigned jobsites yet. Ask an admin to assign you on Sites,
+                  or re-run <code>supabase/seed/ras_jobsites.sql</code> after
+                  Auth user <code>framer@ras-sitesafe-demo.com</code> exists
+                  (sites alone are not enough for framers).
+                </>
+              )}
             </p>
           )}
 

@@ -23,7 +23,9 @@ function mapSiteWithCount(row: SiteRowWithCount): SiteWithAssignmentCount {
 }
 
 /**
- * Sites the signed-in framer is assigned to (RLS filters; join via site_assignments).
+ * Active sites visible to the signed-in user.
+ * RLS (`sites_select_admin_or_assigned`): admins see all active sites
+ * (no `site_assignments` required); framers see only assigned sites.
  */
 export async function listAssignedSites(): Promise<{
   data: Site[]
@@ -42,7 +44,10 @@ export async function listAssignedSites(): Promise<{
   return { data: (data ?? []) as Site[], error: null }
 }
 
-/** All sites for admin (includes inactive) with assignment counts. */
+/**
+ * All sites for admin UI (includes inactive) with assignment counts.
+ * Prefer {@link listAssignedSites} for form pickers — same RLS, simpler select.
+ */
 export async function listAdminSites(): Promise<{
   data: SiteWithAssignmentCount[]
   error: string | null
