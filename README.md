@@ -2,7 +2,7 @@
 
 Mobile-first construction safety form and compliance dashboard built for **Ron Anderson & Sons**.
 
-Living foundation plan (assessment checklist & build order): see the Project store doc `docs/foundation-plan.md` in the Cursor Project context. Keep that checklist updated as milestones land.
+RAS SiteSafe helps framing crews submit site safety checks from the field and gives admins a clear compliance view — phone-first, brand-aligned, and ready for jobsite use.
 
 ## Tech stack
 
@@ -18,48 +18,44 @@ Living foundation plan (assessment checklist & build order): see the Project sto
 npm install
 cp .env.example .env.local
 # Fill VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY from your Supabase project
+# Use the publishable key (sb_publishable_…) as VITE_SUPABASE_ANON_KEY — never the secret/service_role key
 npm run dev
 ```
 
-Dev server defaults to port **4321** (`http://127.0.0.1:4321`).
+Dev server: [http://127.0.0.1:4321](http://127.0.0.1:4321)
+
+### Apply database schema
+
+Schema SQL lives in [`supabase/migrations/20261002000100_sitesafe_schema.sql`](supabase/migrations/20261002000100_sitesafe_schema.sql). Apply via Supabase Dashboard → SQL Editor, or `npx supabase login` + `npx supabase link` + `npx supabase db push`. Seed steps: [`docs/supabase-seed-notes.md`](docs/supabase-seed-notes.md).
 
 ## Assumptions
 
-- Supabase project already exists; wire URL + anon key via env (never commit secrets).
+- Supabase project already exists; wire URL + publishable/anon key via `.env.local` (never commit secrets).
 - Roles live on `profiles.role`: `admin` | `framer`.
-- Official RAS logo must be sourced from RAS site/Instagram into `src/assets/branding/` (not invented).
+- Official RAS logo is sourced from RAS site/Instagram into `src/assets/branding/` (not invented).
 - Assessment demo accounts are fictional SiteSafe identities (not personal emails).
+- Photo uploads (later milestone): jpeg/png/webp, max ~8 MiB, private Storage bucket `submission-photos`.
 
 ## Test Credentials
 
-| Role   | Name           | Email                         | Password                          |
-| ------ | -------------- | ----------------------------- | --------------------------------- |
-| Admin  | Sarah Mitchell | `admin@ras-sitesafe-demo.com` | *(set when seeding Supabase Auth)* |
-| Framer | Daniel Ortiz   | `framer@ras-sitesafe-demo.com`| *(set when seeding Supabase Auth)* |
+| Role   | Name           | Email                          | Password |
+| ------ | -------------- | ------------------------------ | -------- |
+| Admin  | Sarah Mitchell | `admin@ras-sitesafe-demo.com`  | *(set when seeding Supabase Auth — see docs/supabase-seed-notes.md)* |
+| Framer | Daniel Ortiz   | `framer@ras-sitesafe-demo.com` | *(same shared demo password once seeded)* |
 
 ## ERD
 
-- Target: [`docs/ras-sitesafe-erd.png`](docs/ras-sitesafe-erd.png) *(placeholder until schema/ERD milestone)*
-- See `docs/ras-sitesafe-erd.png.PLACEHOLDER.txt` until the diagram is exported.
+![RAS SiteSafe ERD](docs/ras-sitesafe-erd.png)
+
+- Image: [`docs/ras-sitesafe-erd.png`](docs/ras-sitesafe-erd.png)
+- Notes / Mermaid: [`docs/ras-sitesafe-erd.md`](docs/ras-sitesafe-erd.md)
 
 ## Deployed app
 
 - *(Vercel production URL — add after connecting GitHub → Vercel)*
 
-## Create / push GitHub repo (if not done yet)
+## Repo
 
-```bash
-# After `gh auth login` (or create the empty repo on github.com first)
-gh repo create ras-sitesafe --public \
-  --description "Mobile-first construction safety form and compliance dashboard built for Ron Anderson & Sons." \
-  --source=. --remote=github --push
-```
+Public GitHub: [https://github.com/lelandsion/ras-sitesafe](https://github.com/lelandsion/ras-sitesafe)
 
-Or without `gh`:
-
-```bash
-git remote add github https://github.com/<YOUR_USER>/ras-sitesafe.git
-git push -u github main
-```
-
-Then import the repo in Vercel, set `VITE_SUPABASE_*` env vars, and paste the deploy URL above.
+Import in Vercel (Framework: Vite, root = repo root), set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, then paste the production URL above.
