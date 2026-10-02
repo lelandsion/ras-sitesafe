@@ -1,16 +1,22 @@
 :root {
-  /* Placeholder hex — replace with colors extracted from official RAS brand assets */
-  --ras-primary: #1a2332; /* stub: deep operational navy */
-  --ras-secondary: #c45c26; /* stub: construction accent — verify against RAS brand */
-  --ras-surface: #f2efe8; /* stub: warm jobsite paper */
-  --ras-ink: #12151c;
-  --ras-muted: #5c6570;
-  --ras-border: #d4cfc4;
-  --ras-success: #2f6b4f;
+  /* Official RAS palette — extracted from rasltd.ca Squarespace site CSS + logo */
+  --ras-primary: #045339; /* site --accent-hsl 160.25 90.8% 17.06% */
+  --ras-primary-deep: #033d2a;
+  --ras-secondary: #085038; /* sampled from RAS green wordmark logo */
+  --ras-surface: #f7f7f7; /* site --lightAccent-hsl */
+  --ras-surface-raised: #ffffff;
+  --ras-ink: #0e0e0e;
+  --ras-muted: #3e3e3e;
+  --ras-border: #d0d0d0;
+  --ras-charcoal: #2a2829; /* site --darkAccent-hsl */
+  --ras-success: #045339;
   --ras-danger: #9b2c2c;
-  --ras-touch-min: 44px; /* large touch targets for on-site phone use */
+  --ras-warning: #b45309;
+  --ras-on-primary: #ffffff;
+  --ras-touch-min: 48px; /* large touch targets for on-site phone use */
+  --ras-radius: 2px; /* squared / operational — matches chamfered RAS mark */
 
-  --sans: 'Segoe UI', system-ui, sans-serif;
+  --sans: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
   font: 16px/1.45 var(--sans);
@@ -31,6 +37,7 @@
 body {
   margin: 0;
   min-height: 100svh;
+  background: var(--ras-surface);
 }
 
 #root {

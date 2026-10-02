@@ -1,7 +1,11 @@
 # Branding assets
 
-Place the **official Ron Anderson & Sons (RAS) logo** here.
+Official **Ron Anderson & Sons (RAS)** marks sourced from [rasltd.ca](https://www.rasltd.ca/) (Squarespace CDN). Do **not** invent replacements.
 
-- Source from the RAS website or Instagram only — do **not** invent a replacement mark.
-- Prefer SVG or high-res PNG suitable for mobile headers and the app favicon.
-- After adding files, wire them into the layout / favicon and update the README brand section.
+| File | Source | Use |
+| --- | --- | --- |
+| `ras-logo-no-text.png` | Site header / `logoImageUrl` — `RAS Logo_No Text August 2023_CMYK` | App header mark |
+| `ras-logo-green.png` | Site body — `RAS Logo_Updated May 2023_RGB_green` | Full wordmark reference |
+| `ras-favicon.png` | Site favicon | App / tab icon |
+
+Instagram: [@rasltdframing](https://www.instagram.com/rasltdframing/)
