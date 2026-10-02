@@ -24,7 +24,7 @@ export function HomePage() {
   return (
     <div className="app-shell">
       <AppHeader />
-      <main className="app-main">
+      <main className="app-main app-main--landing">
         <section className="hero" aria-labelledby="hero-title">
           <p className="hero__kicker">Ron Anderson &amp; Sons</p>
           <h2 id="hero-title" className="hero__title">

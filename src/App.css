@@ -342,6 +342,23 @@
     flex-wrap: wrap;
   }
 
+  .app-main--landing .hero__actions {
+    max-width: none;
+    width: auto;
+    justify-content: center;
+    flex-wrap: nowrap;
+  }
+
+  .app-main--landing .hero__actions .btn {
+    width: auto;
+    min-width: 11rem;
+  }
+
+  .app-main--landing .how-it-works__actions .btn {
+    width: auto;
+    min-width: 11rem;
+  }
+
   .framer-home__head {
     flex-direction: row;
     align-items: flex-start;
@@ -536,8 +553,75 @@
   padding: 2rem 1.15rem 2.75rem;
   max-width: 40rem;
   width: 100%;
-  padding: 2rem;
   animation: hero-rise 620ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+}
+
+/* Homepage / overview landing — centered column, balanced type (not admin/framer) */
+.app-main--landing {
+  align-items: center;
+}
+
+.app-main--landing .hero {
+  margin: 0 auto;
+  align-items: center;
+  text-align: center;
+}
+
+.app-main--landing .hero__title {
+  font-size: clamp(2.35rem, 11vw, 3.5rem);
+  letter-spacing: 0.05em;
+}
+
+.app-main--landing .hero__title span {
+  font-size: 1em;
+  letter-spacing: 0.05em;
+  margin-top: 0.2rem;
+}
+
+.app-main--landing .hero__lead,
+.app-main--landing .hero__meta {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.app-main--landing .hero__meta {
+  padding-top: 1.35rem;
+  border-top: 2px solid var(--ras-border);
+}
+
+.app-main--landing .hero__actions {
+  width: 100%;
+  max-width: 22rem;
+  align-items: stretch;
+}
+
+.app-main--landing .hero__actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.app-main--landing .how-it-works {
+  text-align: center;
+}
+
+.app-main--landing .how-it-works__lead {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.app-main--landing .how-it-works__steps {
+  text-align: left;
+}
+
+.app-main--landing .how-it-works__actions {
+  display: flex;
+  justify-content: center;
+}
+
+.app-main--landing .how-it-works__actions .btn {
+  width: 100%;
+  max-width: 22rem;
+  justify-content: center;
 }
 
 /* —— How it works / Overview (below-the-fold anchor target) —— */
@@ -1078,8 +1162,12 @@
     max-width: 48rem;
   }
 
-  .hero__title {
-    font-size: 4rem;
+  .app-main--landing .hero__title {
+    font-size: clamp(3.25rem, 5vw, 4.25rem);
+  }
+
+  .app-main--landing .how-it-works {
+    max-width: 44rem;
   }
 }
 
