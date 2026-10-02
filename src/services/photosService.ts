@@ -8,6 +8,8 @@ import {
 } from '../types/database'
 import { humanizeDbError } from './sitesService'
 
+export const PHOTO_FILE_ACCEPT = PHOTO_ALLOWED_TYPES.join(',')
+
 export function validatePhotoFile(file: File): string | null {
   if (!PHOTO_ALLOWED_TYPES.includes(file.type as PhotoContentType)) {
     return 'Photos must be JPEG, PNG, or WebP.'

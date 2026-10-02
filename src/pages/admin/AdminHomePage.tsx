@@ -1,17 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  AlertTriangle,
   CheckCircle2,
   ClipboardList,
+  FileDown,
   FileWarning,
   LogOut,
   RefreshCw,
   ShieldAlert,
+  Users,
 } from 'lucide-react'
 import { AdminNav } from '../../components/admin/AdminNav'
-import { SubmissionsStatusChart } from '../../components/admin/SubmissionsStatusChart'
+import {
+  IssuesByCategoryChart,
+  SafetyTrendCharts,
+} from '../../components/admin/SafetyReportCharts'
 import { AppHeader } from '../../components/layout/AppHeader'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { useAuth } from '../../hooks/auth-context'
+import {
+  aggregateSafetyMetrics,
+  buildOpenIssues,
+  complianceOverTime,
+  issuesByCategory,
+  issuesOverTime,
+  type ChecklistSubmissionRow,
+} from '../../lib/checklistAnalytics'
+import { exportSubmissionToPdf } from '../../lib/exportSubmissionPdf'
 import {
   listAdminSubmissions,
   reviewSubmission,
@@ -24,8 +39,8 @@ import {
   ADMIN_REVIEW_STATUSES,
   SUBMISSION_STATUS_LABELS,
 } from '../../types/database'
-
-type FilterKey = 'all' | 'queue' | 'approved' | 'rejected'
+import { countStructuredIssues } from '../../lib/checklistAnalytics'
+import { parseDailySafetyChecklist } from '../../types/safetyChecklist'
 
 function formatWhen(iso: string): string {
   try {
@@ -45,12 +60,23 @@ function inReviewQueue(status: SubmissionStatus): boolean {
   return status === 'submitted' || status === 'under_review'
 }
 
+function toChecklistRows(items: SubmissionWithDetails[]): ChecklistSubmissionRow[] {
+  return items.map((item) => ({
+    id: item.id,
+    status: item.status,
+    checklist: item.checklist,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+    siteName: item.sites?.name ?? 'Unknown site',
+    workerName: item.submitter?.display_name ?? 'Unknown',
+  }))
+}
+
 export function AdminHomePage() {
   const { profile, user, signOut } = useAuth()
   const [items, setItems] = useState<SubmissionWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filter, setFilter] = useState<FilterKey>('all')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -72,26 +98,49 @@ export function AdminHomePage() {
     void load()
   }, [load])
 
-  const counts = useMemo(() => {
-    const total = items.length
+  const checklistRows = useMemo(() => toChecklistRows(items), [items])
+
+  const metrics = useMemo(
+    () => aggregateSafetyMetrics(checklistRows),
+    [checklistRows],
+  )
+
+  const categoryData = useMemo(
+    () => issuesByCategory(checklistRows),
+    [checklistRows],
+  )
+
+  const trendIssues = useMemo(
+    () => issuesOverTime(checklistRows),
+    [checklistRows],
+  )
+
+  const trendCompliance = useMemo(
+    () => complianceOverTime(checklistRows),
+    [checklistRows],
+  )
+
+  const openIssues = useMemo(
+    () => buildOpenIssues(checklistRows).slice(0, 12),
+    [checklistRows],
+  )
+
+  const reviewCounts = useMemo(() => {
     const queue = items.filter((i) => inReviewQueue(i.status)).length
     const approved = items.filter((i) => i.status === 'approved').length
     const rejected = items.filter((i) => i.status === 'rejected').length
-    return { total, queue, approved, rejected }
+    return { queue, approved, rejected, total: items.length }
   }, [items])
 
-  const filtered = useMemo(() => {
-    switch (filter) {
-      case 'queue':
-        return items.filter((i) => inReviewQueue(i.status))
-      case 'approved':
-        return items.filter((i) => i.status === 'approved')
-      case 'rejected':
-        return items.filter((i) => i.status === 'rejected')
-      default:
-        return items
-    }
-  }, [items, filter])
+  const adminSummaryLines = useMemo(
+    () => [
+      `Avg checklist compliance: ${metrics.avgCompliance ?? '—'}%`,
+      `Hazard reports: ${metrics.hazardReports}`,
+      `Incidents / near misses: ${metrics.incidents}`,
+      `Open structured issues: ${metrics.openIssueCount}`,
+    ],
+    [metrics],
+  )
 
   async function onReview(
     submissionId: string,
@@ -129,6 +178,17 @@ export function AdminHomePage() {
     setUpdatingId(null)
   }
 
+  function exportRowPdf(item: SubmissionWithDetails) {
+    const c = parseDailySafetyChecklist(item.checklist, item.created_at.slice(0, 10))
+    exportSubmissionToPdf({
+      submission: item,
+      adminSummaryLines: [
+        ...adminSummaryLines,
+        `Structured issues on this check: ${countStructuredIssues(c)}`,
+      ],
+    })
+  }
+
   return (
     <div className="app-shell">
       <AppHeader />
@@ -138,14 +198,13 @@ export function AdminHomePage() {
             <div>
               <p className="admin-dash__kicker">Admin</p>
               <h2 id="admin-title" className="admin-dash__title">
-                Compliance desk
-                <span>Review field safety reports</span>
+                Site Safety Report
+                <span>Compliance metrics from daily checks</span>
               </h2>
               <p className="admin-dash__lead">
                 Signed in as{' '}
-                <strong>{profile?.display_name ?? 'Admin'}</strong>. Queue
-                submissions for review, approve clear reports, or send issues
-                back.
+                <strong>{profile?.display_name ?? 'Admin'}</strong>. Review
+                structured PPE, fall protection, hazards, and worker submissions.
               </p>
               <AdminNav />
             </div>
@@ -170,42 +229,9 @@ export function AdminHomePage() {
             </div>
           </div>
 
-          {!loading && !error && (
-            <div className="admin-metrics" aria-label="Submission summary">
-              <div className="admin-metrics__item">
-                <ClipboardList size={22} strokeWidth={2.25} aria-hidden />
-                <div>
-                  <p className="admin-metrics__value">{counts.total}</p>
-                  <p className="admin-metrics__label">Total</p>
-                </div>
-              </div>
-              <div className="admin-metrics__item admin-metrics__item--warn">
-                <ShieldAlert size={22} strokeWidth={2.25} aria-hidden />
-                <div>
-                  <p className="admin-metrics__value">{counts.queue}</p>
-                  <p className="admin-metrics__label">Needs review</p>
-                </div>
-              </div>
-              <div className="admin-metrics__item admin-metrics__item--ok">
-                <CheckCircle2 size={22} strokeWidth={2.25} aria-hidden />
-                <div>
-                  <p className="admin-metrics__value">{counts.approved}</p>
-                  <p className="admin-metrics__label">Approved</p>
-                </div>
-              </div>
-              <div className="admin-metrics__item admin-metrics__item--danger">
-                <FileWarning size={22} strokeWidth={2.25} aria-hidden />
-                <div>
-                  <p className="admin-metrics__value">{counts.rejected}</p>
-                  <p className="admin-metrics__label">Rejected</p>
-                </div>
-              </div>
-            </div>
-          )}
-
           {loading && (
             <div className="panel-state" role="status">
-              Loading submissions…
+              Loading site safety data…
             </div>
           )}
 
@@ -225,14 +251,91 @@ export function AdminHomePage() {
 
           {!loading && !error && (
             <>
-              <div className="admin-chart-panel">
-                <h3 className="admin-chart-panel__title">By status</h3>
-                <p className="admin-chart-panel__lead">
-                  Live count of every safety report in the system.
-                </p>
-                <SubmissionsStatusChart
-                  statuses={items.map((i) => i.status)}
-                />
+              <div className="admin-metrics" aria-label="Safety summary">
+                <div className="admin-metrics__item admin-metrics__item--ok">
+                  <CheckCircle2 size={22} strokeWidth={2.25} aria-hidden />
+                  <div>
+                    <p className="admin-metrics__value">
+                      {metrics.avgCompliance !== null
+                        ? `${metrics.avgCompliance}%`
+                        : '—'}
+                    </p>
+                    <p className="admin-metrics__label">Avg compliance</p>
+                  </div>
+                </div>
+                <div className="admin-metrics__item admin-metrics__item--warn">
+                  <AlertTriangle size={22} strokeWidth={2.25} aria-hidden />
+                  <div>
+                    <p className="admin-metrics__value">{metrics.hazardReports}</p>
+                    <p className="admin-metrics__label">Hazard reports</p>
+                  </div>
+                </div>
+                <div className="admin-metrics__item admin-metrics__item--danger">
+                  <ShieldAlert size={22} strokeWidth={2.25} aria-hidden />
+                  <div>
+                    <p className="admin-metrics__value">{metrics.incidents}</p>
+                    <p className="admin-metrics__label">Incidents / near miss</p>
+                  </div>
+                </div>
+                <div className="admin-metrics__item">
+                  <ClipboardList size={22} strokeWidth={2.25} aria-hidden />
+                  <div>
+                    <p className="admin-metrics__value">{metrics.openIssueCount}</p>
+                    <p className="admin-metrics__label">Open issues</p>
+                  </div>
+                </div>
+                <div className="admin-metrics__item">
+                  <Users size={22} strokeWidth={2.25} aria-hidden />
+                  <div>
+                    <p className="admin-metrics__value">{metrics.submissions}</p>
+                    <p className="admin-metrics__label">Checks submitted</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="admin-report-grid">
+                <div className="admin-chart-panel">
+                  <h3 className="admin-chart-panel__title">Issues by category</h3>
+                  <p className="admin-chart-panel__lead">
+                    Count of “No” answers, hazards, and incidents across non-draft
+                    checks.
+                  </p>
+                  <IssuesByCategoryChart data={categoryData} />
+                </div>
+                <div className="admin-chart-panel admin-chart-panel--wide">
+                  <h3 className="admin-chart-panel__title">Trends</h3>
+                  <p className="admin-chart-panel__lead">
+                    Issues logged per check date and average Yes-rate on scored
+                    items.
+                  </p>
+                  <SafetyTrendCharts
+                    issues={trendIssues}
+                    compliance={trendCompliance}
+                  />
+                </div>
+              </div>
+
+              <div className="admin-panel">
+                <h3 className="admin-panel__title">Open issues</h3>
+                {openIssues.length === 0 ? (
+                  <p className="admin-panel__empty">No open structured issues.</p>
+                ) : (
+                  <ul className="admin-issue-list">
+                    {openIssues.map((issue) => (
+                      <li key={`${issue.submissionId}-${issue.summary}`} className="admin-issue">
+                        <div>
+                          <p className="admin-issue__site">{issue.siteName}</p>
+                          <p className="admin-issue__summary">{issue.summary}</p>
+                          <p className="admin-issue__meta">
+                            {issue.category} · {issue.workerName} ·{' '}
+                            {formatWhen(issue.updatedAt)}
+                          </p>
+                        </div>
+                        <StatusBadge status={issue.status} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               {actionError && (
@@ -241,164 +344,117 @@ export function AdminHomePage() {
                 </p>
               )}
 
-              <div
-                className="admin-filters"
-                role="tablist"
-                aria-label="Filter submissions"
-              >
-                {(
-                  [
-                    ['all', `All (${counts.total})`],
-                    ['queue', `Needs review (${counts.queue})`],
-                    ['approved', `Approved (${counts.approved})`],
-                    ['rejected', `Rejected (${counts.rejected})`],
-                  ] as const
-                ).map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    role="tab"
-                    aria-selected={filter === key}
-                    className={
-                      filter === key
-                        ? 'admin-filters__btn admin-filters__btn--active touch-target'
-                        : 'admin-filters__btn touch-target'
-                    }
-                    onClick={() => setFilter(key)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <div className="admin-panel">
+                <h3 className="admin-panel__title">Worker submissions</h3>
+                <p className="admin-panel__lead">
+                  Review queue: {reviewCounts.queue} · Approved:{' '}
+                  {reviewCounts.approved} · Rejected: {reviewCounts.rejected}
+                </p>
 
-              {filtered.length === 0 ? (
-                <div className="panel-state" role="status">
-                  <p>
-                    {items.length === 0
-                      ? 'No safety reports yet. Framers submit from the field.'
-                      : 'Nothing in this filter.'}
+                {items.length === 0 ? (
+                  <p className="admin-panel__empty">
+                    No daily safety checks yet. Framers submit from the field.
                   </p>
-                </div>
-              ) : (
-                <ul className="admin-list" aria-label="Submissions to review">
-                  {filtered.map((item) => {
-                    const canReview = item.status !== 'draft'
-                    const busy = updatingId === item.id
-                    return (
-                      <li key={item.id} className="admin-row">
-                        <div className="admin-row__main">
-                          <div className="admin-row__top">
-                            <span className="admin-row__site">
-                              {item.sites?.name ?? 'Unknown site'}
-                            </span>
-                            <StatusBadge status={item.status} />
-                          </div>
-                          {item.sites?.address && (
-                            <p className="admin-row__addr">
-                              {item.sites.address}
-                            </p>
-                          )}
-                          <p className="admin-row__meta">
-                            {item.submitter?.display_name ?? 'Unknown framer'}
-                            {' · '}
-                            Updated {formatWhen(item.updated_at)}
-                            {item.reviewed_at
-                              ? ` · Reviewed ${formatWhen(item.reviewed_at)}`
-                              : ''}
-                          </p>
-                          <p className="admin-row__notes">
-                            {item.notes?.trim()
-                              ? item.notes.trim()
-                              : 'No notes'}
-                          </p>
-                        </div>
-                        {canReview ? (
-                          <div className="admin-row__actions">
-                            <label className="admin-row__status-field">
-                              <span>Set status</span>
-                              <select
-                                className="admin-row__select touch-target"
-                                defaultValue=""
-                                key={`${item.id}-${item.status}`}
-                                disabled={busy}
-                                onChange={(e) => {
-                                  const next = e.target.value
-                                  if (
-                                    next !== 'under_review' &&
-                                    next !== 'approved' &&
-                                    next !== 'rejected'
-                                  ) {
-                                    return
-                                  }
-                                  void onReview(item.id, next)
-                                }}
-                                aria-label={`Update status for ${item.sites?.name ?? 'submission'}`}
-                              >
-                                <option value="" disabled>
-                                  Choose…
-                                </option>
-                                {ADMIN_REVIEW_STATUSES.map((s) => (
-                                  <option
-                                    key={s}
-                                    value={s}
-                                    disabled={s === item.status}
+                ) : (
+                  <div className="admin-table-wrap">
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">Site</th>
+                          <th scope="col">Worker</th>
+                          <th scope="col">Check date</th>
+                          <th scope="col">Issues</th>
+                          <th scope="col">Status</th>
+                          <th scope="col">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((item) => {
+                          const c = parseDailySafetyChecklist(
+                            item.checklist,
+                            item.created_at.slice(0, 10),
+                          )
+                          const issueCount = countStructuredIssues(c)
+                          const busy = updatingId === item.id
+                          const canReview = item.status !== 'draft'
+                          return (
+                            <tr key={item.id}>
+                              <td>
+                                <strong>{item.sites?.name ?? '—'}</strong>
+                                {item.notes?.trim() && (
+                                  <p className="admin-table__note">{item.notes}</p>
+                                )}
+                              </td>
+                              <td>{item.submitter?.display_name ?? '—'}</td>
+                              <td>{c.checkDate || '—'}</td>
+                              <td>{issueCount}</td>
+                              <td>
+                                <StatusBadge status={item.status} />
+                              </td>
+                              <td>
+                                <div className="admin-table__actions">
+                                  {canReview ? (
+                                    <select
+                                      className="admin-row__select touch-target"
+                                      defaultValue=""
+                                      key={`${item.id}-${item.status}`}
+                                      disabled={busy}
+                                      aria-label={`Review ${item.sites?.name ?? 'submission'}`}
+                                      onChange={(e) => {
+                                        const next = e.target.value
+                                        if (
+                                          next !== 'under_review' &&
+                                          next !== 'approved' &&
+                                          next !== 'rejected'
+                                        ) {
+                                          return
+                                        }
+                                        void onReview(
+                                          item.id,
+                                          next as typeof next & SubmissionStatus,
+                                        )
+                                      }}
+                                    >
+                                      <option value="" disabled>
+                                        Review…
+                                      </option>
+                                      {ADMIN_REVIEW_STATUSES.map((s) => (
+                                        <option
+                                          key={s}
+                                          value={s}
+                                          disabled={s === item.status}
+                                        >
+                                          {SUBMISSION_STATUS_LABELS[s]}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <span className="admin-table__draft">Draft</span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="btn btn--ghost touch-target admin-table__pdf"
+                                    onClick={() => exportRowPdf(item)}
                                   >
-                                    {SUBMISSION_STATUS_LABELS[s]}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            <div className="admin-row__quick">
-                              {item.status === 'submitted' && (
-                                <button
-                                  type="button"
-                                  className="btn btn--ghost touch-target"
-                                  disabled={busy}
-                                  onClick={() =>
-                                    void onReview(item.id, 'under_review')
-                                  }
-                                >
-                                  Start review
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                className="btn btn--primary touch-target"
-                                disabled={busy || item.status === 'approved'}
-                                onClick={() =>
-                                  void onReview(item.id, 'approved')
-                                }
-                              >
-                                Approve
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn--danger-ghost touch-target"
-                                disabled={busy || item.status === 'rejected'}
-                                onClick={() =>
-                                  void onReview(item.id, 'rejected')
-                                }
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="admin-row__draft-note">
-                            Draft — waiting for framer to submit.
-                          </p>
-                        )}
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
+                                    <FileDown size={18} strokeWidth={2.5} aria-hidden />
+                                    Export PDF
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </section>
       </main>
       <footer className="app-footer">
-        <strong>RAS</strong> · SiteSafe · Admin
+        <strong>RAS</strong> · SiteSafe · Site Safety Report
       </footer>
     </div>
   )

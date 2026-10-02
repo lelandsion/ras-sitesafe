@@ -15,7 +15,7 @@ Presentation-ready QA checklist for assessors and demos. Pair with automated Vit
 | Demo framer | Daniel Ortiz — `framer@ras-sitesafe-demo.com` |
 | Password | *(shared demo password set when seeding Supabase Auth — see README Test credentials; do not invent one)* |
 | Env | `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (publishable/anon only) in `.env.local` or Vercel |
-| Schema | Migration applied + demo users / site assignments seeded (`docs/supabase-seed-notes.md`) |
+| Schema | Migrations through `20261002000300_submission_checklist.sql` + demo seed (`docs/supabase-seed-notes.md`) |
 | Photos | JPEG / PNG / WebP, max **8 MiB** each |
 
 > There is **no public sign-up**. Accounts are provisioned in Supabase Auth.
@@ -50,13 +50,13 @@ Presentation-ready QA checklist for assessors and demos. Pair with automated Vit
 | # | Step | Expected |
 | --- | --- | --- |
 | 3.1 | Open `/framer` as Daniel | List of own submissions (or empty state); **New report** available |
-| 3.2 | Start **New report** (`/framer/new`) | Site selector (assigned sites), notes, photo upload, **Save draft** / submit actions |
-| 3.3 | Submit with required fields missing | Inline / banner validation; no successful submit |
-| 3.4 | Attach a valid JPEG/PNG/WebP under 8 MiB | Thumbnail appears; upload succeeds |
+| 3.2 | Start **New report** (`/framer/new`) | **DAILY SAFETY CHECK** header; PPE / fall protection / tools Yes·No·N/A; hazards & incident sections |
+| 3.3 | Submit with checklist incomplete | Banner validation; no successful submit |
+| 3.4 | Hazards **Yes** → **Add photo** (before draft save) | Draft auto-created via `ensureSubmissionId`; thumbnail appears |
 | 3.5 | Attach GIF / PDF or file **> 8 MiB** | Rejected with clear client message (type or size) |
 | 3.6 | **Save draft** | Status **Draft**; appears in framer list; can reopen and edit |
-| 3.7 | Submit for review | Status moves to **Submitted** (no longer editable as draft) |
-| 3.8 | Open an existing submission from the list | Detail/edit route shows status badge and photos |
+| 3.7 | **Submit Safety Check** | Status **Submitted**; form locked |
+| 3.8 | Reopen submitted check | Read-only structured answers; **Export PDF** downloads checklist PDF |
 
 ---
 
@@ -64,13 +64,12 @@ Presentation-ready QA checklist for assessors and demos. Pair with automated Vit
 
 | # | Step | Expected |
 | --- | --- | --- |
-| 4.1 | Open `/admin` as Sarah | Metrics: Total / Needs review / Approved / Rejected |
-| 4.2 | Check chart | Recharts bar breakdown by status (or empty-chart message) |
-| 4.3 | Use filter tabs | List filters to the selected status set |
-| 4.4 | Set a submitted report to **Under review** / **Start review** | Status updates; reviewed stamp fields set |
-| 4.5 | **Approve** a report | Status **Approved**; persists after refresh |
-| 4.6 | **Reject** a report | Status **Rejected**; persists after refresh |
-| 4.7 | Use **Reports** / **Sites** admin tabs | Nav switches between `/admin` and `/admin/sites` |
+| 4.1 | Open `/admin` **Reports** as Sarah | **Site Safety Report**: avg compliance, hazards, incidents, open issues |
+| 4.2 | Charts | Issues by category + issues/compliance over time (Recharts) |
+| 4.3 | **Open issues** list | Structured “No” / hazard / incident rows from checklist JSON |
+| 4.4 | **Worker submissions** table | Review dropdown + **Export PDF** per row |
+| 4.5 | Approve / reject from table | Status persists after refresh |
+| 4.6 | **Sites** tab | Nav to `/admin/sites` (jobsites unchanged) |
 
 ---
 
@@ -129,6 +128,7 @@ Vitest + React Testing Library cover (mocked Supabase — **no live network**):
 - `StatusBadge` labels/classes
 - `validatePhotoFile` type/size rules
 - `SUBMISSION_STATUS_LABELS` / admin review status helpers
+- Daily safety checklist parse/validate + analytics aggregation
 - `buildStatusCounts` chart aggregation
 - `humanizeDbError` messaging
 - Light `HomePage` brand / CTA smoke

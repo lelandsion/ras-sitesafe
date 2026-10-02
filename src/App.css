@@ -1353,6 +1353,261 @@
   border: 0;
 }
 
+/* —— Daily Safety Check form —— */
+.check-header-card {
+  display: grid;
+  gap: 0.65rem;
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+  background: rgba(4, 83, 57, 0.06);
+  border: 2px solid var(--ras-border);
+  border-radius: var(--ras-radius);
+  font-size: 1rem;
+}
+
+.check-header-card p {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.check-header-card__label {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ras-primary);
+  min-width: 4.5rem;
+}
+
+.check-header-card__date {
+  width: auto;
+  min-width: 10rem;
+  padding: 0.35rem 0.6rem;
+}
+
+.check-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem 0 0.25rem;
+  border-top: 2px solid var(--ras-border);
+}
+
+.check-section__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ras-primary);
+}
+
+.tri-field,
+.yesno-field {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.tri-field__legend,
+.yesno-field__legend {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ras-charcoal);
+  margin-bottom: 0.45rem;
+}
+
+.tri-field__options,
+.yesno-field__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tri-field__option,
+.yesno-field__option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.85rem;
+  border: 2px solid var(--ras-border);
+  border-radius: var(--ras-radius);
+  background: var(--ras-surface-raised);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.tri-field__option:has(input:checked),
+.yesno-field__option:has(input:checked) {
+  border-color: var(--ras-primary);
+  background: rgba(4, 83, 57, 0.08);
+}
+
+.tri-field__option input,
+.yesno-field__option input {
+  accent-color: var(--ras-primary);
+}
+
+/* —— Admin Site Safety Report —— */
+.admin-report-grid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+@media (min-width: 960px) {
+  .admin-report-grid {
+    grid-template-columns: 1fr 1.2fr;
+  }
+}
+
+.admin-chart-panel--wide {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 960px) {
+  .admin-chart-panel--wide {
+    grid-column: auto;
+  }
+}
+
+.admin-chart-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 720px) {
+  .admin-chart-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.admin-chart-panel__subtitle {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ras-charcoal);
+}
+
+.admin-panel {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 2px solid var(--ras-border);
+  border-radius: var(--ras-radius);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.admin-panel__title {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin-panel__lead {
+  margin: 0 0 0.75rem;
+  color: var(--ras-muted);
+  font-size: 0.95rem;
+}
+
+.admin-panel__empty {
+  margin: 0;
+  color: var(--ras-muted);
+}
+
+.admin-issue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.admin-issue {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 2px solid var(--ras-border);
+  border-radius: var(--ras-radius);
+  background: var(--ras-surface);
+}
+
+.admin-issue__site {
+  margin: 0;
+  font-weight: 700;
+}
+
+.admin-issue__summary {
+  margin: 0.25rem 0 0;
+}
+
+.admin-issue__meta {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ras-muted);
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 0.65rem 0.5rem;
+  border-bottom: 2px solid var(--ras-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-table th {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ras-charcoal);
+}
+
+.admin-table__note {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ras-muted);
+}
+
+.admin-table__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 9rem;
+}
+
+.admin-table__pdf {
+  justify-content: flex-start;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.85rem;
+}
+
+.admin-table__draft {
+  font-size: 0.85rem;
+  color: var(--ras-muted);
+}
+
 @media (min-width: 640px) {
   .modal-backdrop {
     align-items: center;

@@ -1,16 +1,19 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   ClipboardCheck,
+  FileDown,
   Save,
   Send,
   Trash2,
 } from 'lucide-react'
 import { AppHeader } from '../../components/layout/AppHeader'
 import { PhotoUpload } from '../../components/forms/PhotoUpload'
+import { TriStateField } from '../../components/forms/TriStateField'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { useAuth } from '../../hooks/auth-context'
+import { exportSubmissionToPdf } from '../../lib/exportSubmissionPdf'
 import { listAssignedSites } from '../../services/sitesService'
 import {
   createSubmission,
@@ -18,10 +21,17 @@ import {
   getSubmission,
   updateSubmission,
 } from '../../services/submissionsService'
-import {
-  listSubmissionPhotos,
-} from '../../services/photosService'
+import { listSubmissionPhotos } from '../../services/photosService'
 import type { Site, SubmissionPhoto, SubmissionStatus } from '../../types/database'
+import {
+  emptyDailySafetyChecklist,
+  HAZARD_SEVERITY_LABELS,
+  parseDailySafetyChecklist,
+  serializeChecklist,
+  validateDailySafetyChecklist,
+  type DailySafetyChecklist,
+  type HazardSeverity,
+} from '../../types/safetyChecklist'
 
 type Mode = 'new' | 'edit'
 
@@ -37,6 +47,9 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
   const [sites, setSites] = useState<Site[]>([])
   const [siteId, setSiteId] = useState('')
   const [notes, setNotes] = useState('')
+  const [checklist, setChecklist] = useState<DailySafetyChecklist>(() =>
+    emptyDailySafetyChecklist(),
+  )
   const [status, setStatus] = useState<SubmissionStatus | null>(
     mode === 'new' ? null : 'draft',
   )
@@ -51,6 +64,11 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
   const [info, setInfo] = useState<string | null>(null)
 
   const editable = isEditable(status)
+
+  const selectedSite = useMemo(
+    () => sites.find((s) => s.id === siteId) ?? null,
+    [sites, siteId],
+  )
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -82,6 +100,12 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
       setSubmissionId(subResult.data.id)
       setSiteId(subResult.data.site_id)
       setNotes(subResult.data.notes ?? '')
+      setChecklist(
+        parseDailySafetyChecklist(
+          subResult.data.checklist,
+          subResult.data.created_at.slice(0, 10),
+        ),
+      )
       setStatus(subResult.data.status)
 
       const photoResult = await listSubmissionPhotos(id)
@@ -99,7 +123,7 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
     void load()
   }, [load])
 
-  async function ensureDraftRow(): Promise<string | null> {
+  async function ensureSubmissionId(): Promise<string | null> {
     if (!user) {
       setError('Not signed in.')
       return null
@@ -115,6 +139,7 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
       site_id: siteId,
       submitted_by: user.id,
       notes: notes.trim() || null,
+      checklist: serializeChecklist(checklist),
       status: 'draft',
     })
 
@@ -125,7 +150,6 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
 
     setSubmissionId(data.id)
     setStatus(data.status)
-    // Keep URL shareable after first save
     navigate(`/framer/submissions/${data.id}`, { replace: true })
     return data.id
   }
@@ -142,17 +166,30 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
       return
     }
 
+    if (nextStatus === 'submitted') {
+      const validationError = validateDailySafetyChecklist(checklist)
+      if (validationError) {
+        setError(validationError)
+        return
+      }
+    }
+
     setSaving(true)
     setError(null)
     setInfo(null)
 
+    const payload = {
+      site_id: siteId,
+      notes: notes.trim() || null,
+      checklist: serializeChecklist(checklist),
+      status: nextStatus,
+    }
+
     let targetId = submissionId
     if (!targetId) {
       const { data, error: createError } = await createSubmission({
-        site_id: siteId,
         submitted_by: user.id,
-        notes: notes.trim() || null,
-        status: nextStatus,
+        ...payload,
       })
       if (createError || !data) {
         setError(createError ?? 'Could not save submission.')
@@ -163,11 +200,7 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
       setSubmissionId(data.id)
       setStatus(data.status)
     } else {
-      const { data, error: updateError } = await updateSubmission(targetId, {
-        site_id: siteId,
-        notes: notes.trim() || null,
-        status: nextStatus,
-      })
+      const { data, error: updateError } = await updateSubmission(targetId, payload)
       if (updateError || !data) {
         setError(updateError ?? 'Could not update submission.')
         setSaving(false)
@@ -178,7 +211,7 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
 
     setSaving(false)
     if (nextStatus === 'submitted') {
-      setInfo('Submitted for review.')
+      setInfo('Safety check submitted for review.')
       navigate('/framer', { replace: true })
       return
     }
@@ -205,6 +238,34 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
     await persist('submitted')
   }
 
+  function onExportPdf() {
+    if (!submissionId) return
+    exportSubmissionToPdf({
+      submission: {
+        id: submissionId,
+        status: status ?? 'draft',
+        notes,
+        checklist: serializeChecklist(checklist),
+        created_at: checklist.checkDate,
+        updated_at: new Date().toISOString(),
+        sites: selectedSite
+          ? {
+              id: selectedSite.id,
+              name: selectedSite.name,
+              address: selectedSite.address,
+            }
+          : null,
+        submitter: profile
+          ? { id: profile.id, display_name: profile.display_name }
+          : null,
+      },
+      photoCount: photos.length,
+    })
+  }
+
+  const hazardPhotoHint =
+    !siteId && editable ? 'Select a jobsite first.' : null
+
   if (loading) {
     return (
       <div className="app-shell">
@@ -228,25 +289,43 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
             My submissions
           </Link>
 
-          <p className="form-page__kicker">Field safety</p>
+          <p className="form-page__kicker">RAS SiteSafe</p>
           <h2 id="form-title" className="form-page__title">
-            {mode === 'new' && !submissionId ? 'New report' : 'Safety report'}
+            DAILY SAFETY CHECK
             {status && (
               <span className="form-page__status">
                 <StatusBadge status={status} />
               </span>
             )}
           </h2>
-          <p className="form-page__lead">
-            Logged as <strong>{profile?.display_name ?? 'Framer'}</strong>. Pick
-            your assigned site, add notes and photos, then submit for review.
-          </p>
+
+          <div className="check-header-card">
+            <p>
+              <span className="check-header-card__label">Site</span>
+              {selectedSite?.name ?? 'Select below'}
+            </p>
+            <p>
+              <span className="check-header-card__label">Date</span>
+              <input
+                type="date"
+                className="check-header-card__date safety-form__control"
+                value={checklist.checkDate}
+                disabled={!editable || saving}
+                onChange={(e) =>
+                  setChecklist((c) => ({ ...c, checkDate: e.target.value }))
+                }
+              />
+            </p>
+            <p>
+              <span className="check-header-card__label">Worker</span>
+              {profile?.display_name ?? 'Framer'}
+            </p>
+          </div>
 
           {sites.length === 0 && (
             <p className="form-banner form-banner--warn" role="status">
               No assigned jobsites yet. Ask an admin to assign you, or run{' '}
-              <code>supabase/seed/ras_jobsites.sql</code> (see{' '}
-              docs/supabase-seed-notes.md).
+              <code>supabase/seed/ras_jobsites.sql</code>.
             </p>
           )}
 
@@ -282,47 +361,305 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
               </select>
             </label>
 
+            <section className="check-section" aria-labelledby="ppe-heading">
+              <h3 id="ppe-heading" className="check-section__title">
+                PPE
+              </h3>
+              <TriStateField
+                label="Hard hat worn"
+                name="ppe-hardHat"
+                value={checklist.ppe.hardHat}
+                disabled={!editable || saving}
+                onChange={(hardHat) =>
+                  setChecklist((c) => ({ ...c, ppe: { ...c.ppe, hardHat } }))
+                }
+              />
+              <TriStateField
+                label="High-vis vest"
+                name="ppe-highVis"
+                value={checklist.ppe.highVis}
+                disabled={!editable || saving}
+                onChange={(highVis) =>
+                  setChecklist((c) => ({ ...c, ppe: { ...c.ppe, highVis } }))
+                }
+              />
+              <TriStateField
+                label="Appropriate footwear"
+                name="ppe-footwear"
+                value={checklist.ppe.footwear}
+                disabled={!editable || saving}
+                onChange={(footwear) =>
+                  setChecklist((c) => ({ ...c, ppe: { ...c.ppe, footwear } }))
+                }
+              />
+              <TriStateField
+                label="Eye protection (when required)"
+                name="ppe-eye"
+                value={checklist.ppe.eyeProtection}
+                disabled={!editable || saving}
+                onChange={(eyeProtection) =>
+                  setChecklist((c) => ({
+                    ...c,
+                    ppe: { ...c.ppe, eyeProtection },
+                  }))
+                }
+              />
+            </section>
+
+            <section className="check-section" aria-labelledby="fp-heading">
+              <h3 id="fp-heading" className="check-section__title">
+                Fall protection
+              </h3>
+              <TriStateField
+                label="Edges / openings protected"
+                name="fp-edges"
+                value={checklist.fallProtection.edgesProtected}
+                disabled={!editable || saving}
+                onChange={(edgesProtected) =>
+                  setChecklist((c) => ({
+                    ...c,
+                    fallProtection: { ...c.fallProtection, edgesProtected },
+                  }))
+                }
+              />
+              <TriStateField
+                label="Fall protection in use"
+                name="fp-inuse"
+                value={checklist.fallProtection.fpInUse}
+                disabled={!editable || saving}
+                onChange={(fpInUse) =>
+                  setChecklist((c) => ({
+                    ...c,
+                    fallProtection: { ...c.fallProtection, fpInUse },
+                  }))
+                }
+              />
+              <TriStateField
+                label="Ladders / access safe"
+                name="fp-ladders"
+                value={checklist.fallProtection.ladders}
+                disabled={!editable || saving}
+                onChange={(ladders) =>
+                  setChecklist((c) => ({
+                    ...c,
+                    fallProtection: { ...c.fallProtection, ladders },
+                  }))
+                }
+              />
+            </section>
+
+            <section className="check-section" aria-labelledby="tools-heading">
+              <h3 id="tools-heading" className="check-section__title">
+                Tools & work area
+              </h3>
+              <TriStateField
+                label="Tools / equipment condition OK"
+                name="tools-condition"
+                value={checklist.toolsAndWorkArea.toolsCondition}
+                disabled={!editable || saving}
+                onChange={(toolsCondition) =>
+                  setChecklist((c) => ({
+                    ...c,
+                    toolsAndWorkArea: { ...c.toolsAndWorkArea, toolsCondition },
+                  }))
+                }
+              />
+              <TriStateField
+                label="Work area clear"
+                name="tools-clear"
+                value={checklist.toolsAndWorkArea.workAreaClear}
+                disabled={!editable || saving}
+                onChange={(workAreaClear) =>
+                  setChecklist((c) => ({
+                    ...c,
+                    toolsAndWorkArea: { ...c.toolsAndWorkArea, workAreaClear },
+                  }))
+                }
+              />
+              <TriStateField
+                label="Housekeeping acceptable"
+                name="tools-housekeeping"
+                value={checklist.toolsAndWorkArea.housekeeping}
+                disabled={!editable || saving}
+                onChange={(housekeeping) =>
+                  setChecklist((c) => ({
+                    ...c,
+                    toolsAndWorkArea: { ...c.toolsAndWorkArea, housekeeping },
+                  }))
+                }
+              />
+            </section>
+
+            <section className="check-section" aria-labelledby="hazards-heading">
+              <h3 id="hazards-heading" className="check-section__title">
+                Hazards
+              </h3>
+              <fieldset className="yesno-field" disabled={!editable || saving}>
+                <legend className="yesno-field__legend">
+                  Hazard observed on site?
+                </legend>
+                <div className="yesno-field__options">
+                  {(
+                    [
+                      [true, 'Yes'],
+                      [false, 'No'],
+                    ] as const
+                  ).map(([val, label]) => (
+                    <label key={String(val)} className="yesno-field__option touch-target">
+                      <input
+                        type="radio"
+                        name="hazards-present"
+                        checked={checklist.hazards.present === val}
+                        onChange={() =>
+                          setChecklist((c) => ({
+                            ...c,
+                            hazards: {
+                              ...c.hazards,
+                              present: val,
+                              description: val ? c.hazards.description : '',
+                              severity: val ? c.hazards.severity : null,
+                            },
+                          }))
+                        }
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              {checklist.hazards.present && (
+                <>
+                  <label className="safety-form__field">
+                    <span>Hazard description *</span>
+                    <textarea
+                      className="safety-form__control safety-form__textarea"
+                      rows={3}
+                      required
+                      disabled={!editable || saving}
+                      value={checklist.hazards.description}
+                      onChange={(e) =>
+                        setChecklist((c) => ({
+                          ...c,
+                          hazards: { ...c.hazards, description: e.target.value },
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className="safety-form__field">
+                    <span>Severity *</span>
+                    <select
+                      className="safety-form__control touch-target"
+                      required
+                      disabled={!editable || saving}
+                      value={checklist.hazards.severity ?? ''}
+                      onChange={(e) =>
+                        setChecklist((c) => ({
+                          ...c,
+                          hazards: {
+                            ...c.hazards,
+                            severity: e.target.value as HazardSeverity,
+                          },
+                        }))
+                      }
+                    >
+                      <option value="">Select…</option>
+                      {(Object.keys(HAZARD_SEVERITY_LABELS) as HazardSeverity[]).map(
+                        (s) => (
+                          <option key={s} value={s}>
+                            {HAZARD_SEVERITY_LABELS[s]}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                  {user && (
+                    <PhotoUpload
+                      userId={user.id}
+                      submissionId={submissionId}
+                      ensureSubmissionId={ensureSubmissionId}
+                      photos={photos}
+                      onChange={setPhotos}
+                      disabled={!editable || saving}
+                      blockedHint={hazardPhotoHint}
+                      title="Hazard photos"
+                      triggerLabel="Add photo"
+                    />
+                  )}
+                </>
+              )}
+            </section>
+
+            <section className="check-section" aria-labelledby="incident-heading">
+              <h3 id="incident-heading" className="check-section__title">
+                Incident / near miss
+              </h3>
+              <fieldset className="yesno-field" disabled={!editable || saving}>
+                <legend className="yesno-field__legend">
+                  Incident or near miss today?
+                </legend>
+                <div className="yesno-field__options">
+                  {(
+                    [
+                      [true, 'Yes'],
+                      [false, 'No'],
+                    ] as const
+                  ).map(([val, label]) => (
+                    <label key={String(val)} className="yesno-field__option touch-target">
+                      <input
+                        type="radio"
+                        name="incident-occurred"
+                        checked={checklist.incidentOrNearMiss.occurred === val}
+                        onChange={() =>
+                          setChecklist((c) => ({
+                            ...c,
+                            incidentOrNearMiss: {
+                              occurred: val,
+                              detail: val ? c.incidentOrNearMiss.detail : '',
+                            },
+                          }))
+                        }
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              {checklist.incidentOrNearMiss.occurred && (
+                <label className="safety-form__field">
+                  <span>Details *</span>
+                  <textarea
+                    className="safety-form__control safety-form__textarea"
+                    rows={3}
+                    required
+                    disabled={!editable || saving}
+                    value={checklist.incidentOrNearMiss.detail}
+                    onChange={(e) =>
+                      setChecklist((c) => ({
+                        ...c,
+                        incidentOrNearMiss: {
+                          ...c.incidentOrNearMiss,
+                          detail: e.target.value,
+                        },
+                      }))
+                    }
+                  />
+                </label>
+              )}
+            </section>
+
             <label className="safety-form__field">
-              <span>Safety notes</span>
+              <span>Additional notes</span>
               <textarea
                 className="safety-form__control safety-form__textarea"
                 name="notes"
-                rows={6}
+                rows={4}
                 disabled={!editable || saving}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Hazards, PPE, housekeeping, near misses…"
+                placeholder="Anything else the office should know…"
               />
             </label>
-
-            <div className="safety-form__photos">
-              {submissionId && user ? (
-                <PhotoUpload
-                  userId={user.id}
-                  submissionId={submissionId}
-                  photos={photos}
-                  onChange={setPhotos}
-                  disabled={!editable || saving}
-                />
-              ) : editable ? (
-                <div className="photo-upload photo-upload--deferred">
-                  <h3 className="photo-upload__title">Site photos</h3>
-                  <p className="photo-upload__hint">
-                    Save a draft first (or tap below) so photos attach to this
-                    report.
-                  </p>
-                  <button
-                    type="button"
-                    className="btn btn--ghost touch-target"
-                    disabled={saving || !siteId}
-                    onClick={() => void ensureDraftRow()}
-                  >
-                    <Save size={20} strokeWidth={2.5} aria-hidden />
-                    Create draft for photos
-                  </button>
-                </div>
-              ) : null}
-            </div>
 
             {editable && (
               <div className="safety-form__actions">
@@ -341,17 +678,27 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
                   disabled={saving || !siteId}
                 >
                   <Send size={20} strokeWidth={2.5} aria-hidden />
-                  {saving ? 'Submitting…' : 'Submit'}
+                  {saving ? 'Submitting…' : 'Submit Safety Check'}
                 </button>
               </div>
             )}
 
             {!editable && (
-              <p className="form-page__readonly">
-                <ClipboardCheck size={18} strokeWidth={2.5} aria-hidden />
-                This report is {status?.replace('_', ' ')} and locked for field
-                edits.
-              </p>
+              <>
+                <p className="form-page__readonly">
+                  <ClipboardCheck size={18} strokeWidth={2.5} aria-hidden />
+                  This check is {status?.replace('_', ' ')} and locked for field
+                  edits.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn--ghost touch-target"
+                  onClick={onExportPdf}
+                >
+                  <FileDown size={20} strokeWidth={2.5} aria-hidden />
+                  Export PDF
+                </button>
+              </>
             )}
 
             {status === 'draft' && submissionId && (
@@ -369,7 +716,7 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
         </section>
       </main>
       <footer className="app-footer">
-        <strong>RAS</strong> · SiteSafe · Field form
+        <strong>RAS</strong> · SiteSafe · Daily Safety Check
       </footer>
     </div>
   )

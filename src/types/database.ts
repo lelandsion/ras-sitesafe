@@ -51,6 +51,8 @@ export interface Submission {
   site_id: string
   submitted_by: string
   status: SubmissionStatus
+  /** Daily Safety Check JSON (see safetyChecklist.ts). Legacy rows may be {}. */
+  checklist: Record<string, unknown>
   notes: string | null
   reviewed_by: string | null
   reviewed_at: string | null

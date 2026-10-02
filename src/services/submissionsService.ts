@@ -29,8 +29,10 @@ function normalizeProfileEmbed(
 
 function mapSubmissionRow(row: Record<string, unknown>): SubmissionWithSite {
   const { sites, ...rest } = row
+  const base = rest as Omit<SubmissionWithSite, 'sites'>
   return {
-    ...(rest as Omit<SubmissionWithSite, 'sites'>),
+    ...base,
+    checklist: (base.checklist as Record<string, unknown> | undefined) ?? {},
     sites: normalizeSiteEmbed(sites as SiteSnippet | SiteSnippet[] | null),
   }
 }
@@ -39,8 +41,10 @@ function mapAdminSubmissionRow(
   row: Record<string, unknown>,
 ): SubmissionWithDetails {
   const { sites, submitter, ...rest } = row
+  const base = rest as Omit<SubmissionWithDetails, 'sites' | 'submitter'>
   return {
-    ...(rest as Omit<SubmissionWithDetails, 'sites' | 'submitter'>),
+    ...base,
+    checklist: (base.checklist as Record<string, unknown> | undefined) ?? {},
     sites: normalizeSiteEmbed(sites as SiteSnippet | SiteSnippet[] | null),
     submitter: normalizeProfileEmbed(
       submitter as ProfileSnippet | ProfileSnippet[] | null,
@@ -60,6 +64,7 @@ export async function listMySubmissions(): Promise<{
       site_id,
       submitted_by,
       status,
+      checklist,
       notes,
       reviewed_by,
       reviewed_at,
@@ -92,6 +97,7 @@ export async function getSubmission(id: string): Promise<{
       site_id,
       submitted_by,
       status,
+      checklist,
       notes,
       reviewed_by,
       reviewed_at,
@@ -119,6 +125,7 @@ export interface CreateSubmissionInput {
   site_id: string
   submitted_by: string
   notes: string | null
+  checklist?: Record<string, unknown>
   status: Extract<SubmissionStatus, 'draft' | 'submitted'>
 }
 
@@ -131,10 +138,11 @@ export async function createSubmission(
       site_id: input.site_id,
       submitted_by: input.submitted_by,
       notes: input.notes,
+      checklist: input.checklist ?? {},
       status: input.status,
     })
     .select(
-      'id, site_id, submitted_by, status, notes, reviewed_by, reviewed_at, created_at, updated_at',
+      'id, site_id, submitted_by, status, checklist, notes, reviewed_by, reviewed_at, created_at, updated_at',
     )
     .single()
 
@@ -148,6 +156,7 @@ export async function createSubmission(
 export interface UpdateSubmissionInput {
   site_id?: string
   notes?: string | null
+  checklist?: Record<string, unknown>
   status?: SubmissionStatus
 }
 
@@ -160,7 +169,7 @@ export async function updateSubmission(
     .update(input)
     .eq('id', id)
     .select(
-      'id, site_id, submitted_by, status, notes, reviewed_by, reviewed_at, created_at, updated_at',
+      'id, site_id, submitted_by, status, checklist, notes, reviewed_by, reviewed_at, created_at, updated_at',
     )
     .single()
 
@@ -194,6 +203,7 @@ export async function listAdminSubmissions(): Promise<{
       site_id,
       submitted_by,
       status,
+      checklist,
       notes,
       reviewed_by,
       reviewed_at,
@@ -235,7 +245,7 @@ export async function reviewSubmission(
     })
     .eq('id', id)
     .select(
-      'id, site_id, submitted_by, status, notes, reviewed_by, reviewed_at, created_at, updated_at',
+      'id, site_id, submitted_by, status, checklist, notes, reviewed_by, reviewed_at, created_at, updated_at',
     )
     .single()
 

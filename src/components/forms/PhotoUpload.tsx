@@ -3,6 +3,7 @@ import { Camera, ImagePlus, Trash2 } from 'lucide-react'
 import {
   deleteSubmissionPhoto,
   getPhotoSignedUrl,
+  PHOTO_FILE_ACCEPT,
   uploadSubmissionPhoto,
   validatePhotoFile,
 } from '../../services/photosService'
@@ -13,10 +14,14 @@ import {
 
 type Props = {
   userId: string
-  submissionId: string
+  submissionId: string | null
+  ensureSubmissionId?: () => Promise<string | null>
   photos: SubmissionPhoto[]
   onChange: (photos: SubmissionPhoto[]) => void
   disabled?: boolean
+  blockedHint?: string | null
+  title?: string
+  triggerLabel?: string
 }
 
 function PhotoThumb({
@@ -66,18 +71,39 @@ function PhotoThumb({
 export function PhotoUpload({
   userId,
   submissionId,
+  ensureSubmissionId,
   photos,
   onChange,
   disabled,
+  blockedHint,
+  title = 'Site photos',
+  triggerLabel = 'Add photos',
 }: Props) {
   const inputId = useId()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const attachBlocked = Boolean(blockedHint)
+  const pickerDisabled = Boolean(disabled || busy || attachBlocked)
+
   async function onFilesSelected(fileList: FileList | null) {
-    if (!fileList?.length || disabled) return
+    if (!fileList?.length || disabled || attachBlocked) return
     setError(null)
     setBusy(true)
+
+    let targetSubmissionId = submissionId
+    if (!targetSubmissionId) {
+      if (!ensureSubmissionId) {
+        setError('Save the report before attaching photos.')
+        setBusy(false)
+        return
+      }
+      targetSubmissionId = await ensureSubmissionId()
+      if (!targetSubmissionId) {
+        setBusy(false)
+        return
+      }
+    }
 
     const next = [...photos]
     for (const file of Array.from(fileList)) {
@@ -88,7 +114,7 @@ export function PhotoUpload({
       }
       const { data, error: uploadError } = await uploadSubmissionPhoto({
         userId,
-        submissionId,
+        submissionId: targetSubmissionId,
         file,
       })
       if (uploadError || !data) {
@@ -121,7 +147,7 @@ export function PhotoUpload({
   return (
     <div className="photo-upload">
       <div className="photo-upload__header">
-        <h3 className="photo-upload__title">Site photos</h3>
+        <h3 className="photo-upload__title">{title}</h3>
         <p className="photo-upload__hint">
           JPEG, PNG, or WebP · max {maxMb} MB each
         </p>
@@ -146,10 +172,10 @@ export function PhotoUpload({
             id={inputId}
             className="photo-upload__input"
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept={PHOTO_FILE_ACCEPT}
             capture="environment"
             multiple
-            disabled={busy}
+            disabled={pickerDisabled}
             onChange={(e) => {
               void onFilesSelected(e.target.files)
               e.target.value = ''
@@ -157,11 +183,16 @@ export function PhotoUpload({
           />
           <label
             htmlFor={inputId}
-            className={`btn btn--ghost touch-target photo-upload__trigger${busy ? ' is-busy' : ''}`}
+            className={`btn btn--ghost touch-target photo-upload__trigger${busy ? ' is-busy' : ''}${pickerDisabled && !busy ? ' is-disabled' : ''}`}
           >
             <ImagePlus size={20} strokeWidth={2.5} aria-hidden />
-            {busy ? 'Uploading…' : 'Add photos'}
+            {busy ? 'Uploading…' : triggerLabel}
           </label>
+          {blockedHint && (
+            <p className="photo-upload__hint" role="status">
+              {blockedHint}
+            </p>
+          )}
         </>
       )}
 
