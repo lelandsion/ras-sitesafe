@@ -30,20 +30,26 @@ export function AppHeader() {
       role="banner"
     >
       <div className="app-header__row">
-        <Link to="/" className="app-header__logo-link" onClick={() => setNavOpen(false)}>
+        <Link
+          to="/"
+          className="app-header__brand-lockup"
+          onClick={() => setNavOpen(false)}
+          aria-label="RAS SiteSafe home"
+        >
           <img
             className="app-header__logo"
             src={rasLogo}
-            alt="Ron Anderson & Sons"
+            alt=""
             width={808}
             height={534}
+            decoding="async"
           />
+          <div className="app-header__wordmark">
+            <span className="app-header__brand">RAS</span>
+            <h1 className="app-header__product">SITESAFE</h1>
+            <p className="app-header__tag">Site Safety &amp; Compliance</p>
+          </div>
         </Link>
-        <div className="app-header__wordmark">
-          <span className="app-header__brand">RAS</span>
-          <h1 className="app-header__product">SITESAFE</h1>
-          <p className="app-header__tag">Site Safety &amp; Compliance</p>
-        </div>
         <button
           type="button"
           className="app-header__menu touch-target"

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap');
 
 :root {
   /* Official RAS palette — rasltd.ca Squarespace site.css + logo sample */
@@ -19,8 +19,11 @@
   --ras-touch-min: 48px;
   --ras-radius: 2px;
 
-  /* Purposeful type — not Inter / Roboto / Arial / system UI stacks */
-  --font-display: 'Oswald', 'Arial Narrow', sans-serif;
+  /*
+   * Type — rasltd.ca uses licensed Gainsborough Sans (headings) + Omnes Pro (body).
+   * Open substitutes below; see store docs/ras-branding.md for provenance.
+   */
+  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
   --font-body: 'Source Sans 3', 'Segoe UI', sans-serif;
 
   font: 17px/1.5 var(--font-body);
@@ -58,7 +61,7 @@ h3,
 .font-display {
   font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
