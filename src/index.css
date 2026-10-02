@@ -1,0 +1,51 @@
+:root {
+  /* Placeholder hex — replace with colors extracted from official RAS brand assets */
+  --ras-primary: #1a2332; /* stub: deep operational navy */
+  --ras-secondary: #c45c26; /* stub: construction accent — verify against RAS brand */
+  --ras-surface: #f2efe8; /* stub: warm jobsite paper */
+  --ras-ink: #12151c;
+  --ras-muted: #5c6570;
+  --ras-border: #d4cfc4;
+  --ras-success: #2f6b4f;
+  --ras-danger: #9b2c2c;
+  --ras-touch-min: 44px; /* large touch targets for on-site phone use */
+
+  --sans: 'Segoe UI', system-ui, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+
+  font: 16px/1.45 var(--sans);
+  color: var(--ras-ink);
+  background: var(--ras-surface);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.touch-target {
+  min-height: var(--ras-touch-min);
+  min-width: var(--ras-touch-min);
+}
