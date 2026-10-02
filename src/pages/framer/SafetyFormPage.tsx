@@ -244,8 +244,9 @@ export function SafetyFormPage({ mode }: { mode: Mode }) {
 
           {sites.length === 0 && (
             <p className="form-banner form-banner--warn" role="status">
-              No assigned jobsites yet. Ask an admin to create a site and assign
-              you (see docs/supabase-seed-notes.md).
+              No assigned jobsites yet. Ask an admin to assign you, or run{' '}
+              <code>supabase/seed/ras_jobsites.sql</code> (see{' '}
+              docs/supabase-seed-notes.md).
             </p>
           )}
 

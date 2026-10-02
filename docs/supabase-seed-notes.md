@@ -51,21 +51,52 @@ set display_name = 'Daniel Ortiz', role = 'framer'
 where id = (select id from auth.users where email = 'framer@ras-sitesafe-demo.com');
 ```
 
-## Optional sample site + assignment
+## Seed RAS jobsites (form dropdown)
 
-After both users exist:
+After Auth users exist, populate the framer safety form **Jobsite** dropdown with realistic Ron Anderson & Sons / Vancouver Island framing sites and assign them to Daniel.
+
+### Option A — Dashboard SQL Editor (recommended)
+
+1. Open **SQL Editor** → New query
+2. Paste the full contents of [`supabase/seed/ras_jobsites.sql`](../supabase/seed/ras_jobsites.sql)
+3. Run once (safe to re-run: inserts by name only if missing; assignments use `ON CONFLICT DO NOTHING`)
+
+Example site names included:
+
+- Langford Yard — Shop & Prefab Staging
+- North Yard — Truss & Panel Laydown
+- Millstream Heights — Phase 2 Framing
+- Royal Bay — Colwood Residential
+- Bear Mountain — Townhomes Framing
+- Westshore Commons — Multi-Family Formwork
+- View Royal Waterfront — Stick Frame
+- Cobble Hill — Cowichan Valley Spec Homes
+
+Then sign in as `framer@ras-sitesafe-demo.com` → **New report** (`/framer/new`) — the dropdown should list those assigned sites. Admins see all active sites via RLS; framers only see assignments.
+
+If Daniel’s profile is missing, the site rows still insert; re-run the seed after creating the Auth user to attach `site_assignments`.
+
+### Option B — one-off sample (legacy)
 
 ```sql
 insert into public.sites (name, address)
-values ('RAS Demo Jobsite — North Yard', '123 Framing Lane')
-returning id;
-
--- Replace UUIDs with real ids from profiles / sites
-insert into public.site_assignments (site_id, framer_id)
-values (
-  '<site-uuid>',
-  (select id from public.profiles where role = 'framer' limit 1)
+select 'RAS Demo Jobsite — North Yard', '123 Framing Lane'
+where not exists (
+  select 1 from public.sites where name = 'RAS Demo Jobsite — North Yard'
 );
+
+insert into public.site_assignments (site_id, framer_id)
+select s.id, p.id
+from public.sites s
+cross join lateral (
+  select pr.id
+  from public.profiles pr
+  join auth.users u on u.id = pr.id
+  where u.email = 'framer@ras-sitesafe-demo.com'
+  limit 1
+) p
+where s.name = 'RAS Demo Jobsite — North Yard'
+on conflict (site_id, framer_id) do nothing;
 ```
 
 ## Photo constraints (client + bucket)
