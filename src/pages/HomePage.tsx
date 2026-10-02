@@ -1,0 +1,132 @@
+import { useEffect } from 'react'
+import { ClipboardCheck, LogIn, ShieldCheck, LayoutDashboard } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { AppHeader } from '../components/layout/AppHeader'
+import { useAuth } from '../hooks/auth-context'
+
+const HOW_IT_WORKS_ID = 'how-it-works'
+
+function scrollToHowItWorks() {
+  document.getElementById(HOW_IT_WORKS_ID)?.scrollIntoView({ behavior: 'smooth' })
+}
+
+export function HomePage() {
+  const { session, role, profile } = useAuth()
+  const location = useLocation()
+  const signedInDest = role === 'admin' ? '/admin' : role === 'framer' ? '/framer' : '/login'
+
+  useEffect(() => {
+    if (location.hash === `#${HOW_IT_WORKS_ID}`) {
+      requestAnimationFrame(() => scrollToHowItWorks())
+    }
+  }, [location.hash])
+
+  return (
+    <div className="app-shell">
+      <AppHeader />
+      <main className="app-main">
+        <section className="hero" aria-labelledby="hero-title">
+          <p className="hero__kicker">Ron Anderson &amp; Sons</p>
+          <h2 id="hero-title" className="hero__title">
+            SiteSafe
+            <span>On every job.</span>
+          </h2>
+          <p className="hero__lead">
+            Mobile-first site safety forms and compliance for RAS framing crews —
+            built for phones in the field, not desks in the office.
+          </p>
+          <div className="hero__actions">
+            <Link className="btn btn--primary touch-target" to={signedInDest}>
+              <LogIn size={20} strokeWidth={2.5} aria-hidden />
+              {session ? `Continue as ${profile?.display_name ?? role}` : 'Sign in'}
+            </Link>
+            <a
+              className="btn btn--ghost touch-target"
+              href={`#${HOW_IT_WORKS_ID}`}
+              onClick={(e) => {
+                e.preventDefault()
+                scrollToHowItWorks()
+                window.history.replaceState(null, '', `#${HOW_IT_WORKS_ID}`)
+              }}
+            >
+              <ShieldCheck size={20} strokeWidth={2.5} aria-hidden />
+              How it works
+            </a>
+          </div>
+          <p className="hero__meta">
+            <strong>Login + framer forms ready.</strong> Apply the SQL migration, seed
+            demo users, then sign in as Framer to file reports with photos. Admin
+            dashboard charts come next.
+          </p>
+        </section>
+
+        <section
+          className="how-it-works"
+          id={HOW_IT_WORKS_ID}
+          aria-labelledby="how-it-works-title"
+        >
+          <p className="how-it-works__kicker">Overview</p>
+          <h2 id="how-it-works-title" className="how-it-works__title">
+            How it works
+          </h2>
+          <p className="how-it-works__lead">
+            Three steps from the gate to a reviewed safety record — no public signup.
+          </p>
+          <ol className="how-it-works__steps">
+            <li className="how-it-works__step">
+              <span className="how-it-works__num" aria-hidden>
+                01
+              </span>
+              <div className="how-it-works__icon" aria-hidden>
+                <LogIn size={28} strokeWidth={2.25} />
+              </div>
+              <div className="how-it-works__copy">
+                <h3>Sign in</h3>
+                <p>Crew and admins use company accounts. Nothing is open to the public.</p>
+              </div>
+            </li>
+            <li className="how-it-works__step">
+              <span className="how-it-works__num" aria-hidden>
+                02
+              </span>
+              <div className="how-it-works__icon" aria-hidden>
+                <ClipboardCheck size={28} strokeWidth={2.25} />
+              </div>
+              <div className="how-it-works__copy">
+                <h3>Complete the safety form</h3>
+                <p>
+                  Framers fill the site checklist on their phone and attach jobsite
+                  photos before submitting.
+                </p>
+              </div>
+            </li>
+            <li className="how-it-works__step">
+              <span className="how-it-works__num" aria-hidden>
+                03
+              </span>
+              <div className="how-it-works__icon" aria-hidden>
+                <LayoutDashboard size={28} strokeWidth={2.25} />
+              </div>
+              <div className="how-it-works__copy">
+                <h3>Admin reviews</h3>
+                <p>
+                  Supervisors open the dashboard, review submissions, and track
+                  compliance status.
+                </p>
+              </div>
+            </li>
+          </ol>
+          <div className="how-it-works__actions">
+            <Link className="btn btn--primary touch-target" to="/login">
+              <LogIn size={20} strokeWidth={2.5} aria-hidden />
+              Sign in to start
+            </Link>
+          </div>
+        </section>
+      </main>
+      <footer className="app-footer">
+        <strong>RAS</strong> · SiteSafe · Internal construction safety tool
+      </footer>
+    </div>
+  )
+}
