@@ -54,9 +54,9 @@ export function HomePage() {
             </a>
           </div>
           <p className="hero__meta">
-            <strong>Login + framer forms ready.</strong> Apply the SQL migration, seed
-            demo users, then sign in as Framer to file reports with photos. Admin
-            dashboard charts come next.
+            <strong>Daily Safety Check + admin dashboard.</strong> Apply Supabase SQL
+            (Parts 1–3), seed demo users, then sign in — framers file checklist reports
+            with photos; admins review, chart issues, and export PDFs.
           </p>
         </section>
 
