@@ -39,6 +39,25 @@ describe('PhotoUpload', () => {
     validatePhotoFile.mockReturnValue(null)
   })
 
+  it('omits capture so iOS can offer Photo Library / Files', () => {
+    render(
+      <PhotoUpload
+        userId="user-1"
+        submissionId="sub-1"
+        photos={[]}
+        onChange={vi.fn()}
+        photoKind="site"
+      />,
+    )
+
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement
+    expect(input).toBeTruthy()
+    expect(input.accept).toBe('image/jpeg,image/png,image/webp')
+    expect(input.hasAttribute('capture')).toBe(false)
+  })
+
   it('auto-creates a draft then uploads on the first select', async () => {
     const user = userEvent.setup()
     const ensureSubmissionId = vi.fn().mockResolvedValue('sub-created')

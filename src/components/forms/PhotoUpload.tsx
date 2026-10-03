@@ -206,7 +206,6 @@ export function PhotoUpload({
             className="photo-upload__input"
             type="file"
             accept={PHOTO_FILE_ACCEPT}
-            capture="environment"
             multiple
             disabled={pickerDisabled}
             onChange={(e) => {
