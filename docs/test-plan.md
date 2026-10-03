@@ -116,7 +116,7 @@ Presentation-ready smoke + regression checklist. Pair with automated Vitest (`np
 | --- | --- | --- |
 | 4.1 | Open `/admin` as Sarah | **Site Safety Report**: avg compliance, hazards, incidents, open issues, checks submitted |
 | 4.2 | Charts | Issues by category + issues/compliance over time (Recharts) or empty-chart message |
-| 4.3 | **Open issues** list | Structured “No” / hazard / incident rows from checklist JSON |
+| 4.3 | **Open issues** summary | Count + link to **Safety Issues** (`/admin/issues`); no full issue list / CA actions on Dashboard |
 | 4.4 | Set **Site** filter to one jobsite | Worker submissions table shows only that site |
 | 4.5 | Set **Worker** filter to Daniel | Only Daniel’s rows |
 | 4.6 | Set date From/To that excludes known rows | Matching rows only (or empty filtered state) |
@@ -127,7 +127,7 @@ Presentation-ready smoke + regression checklist. Pair with automated Vitest (`np
 | 4.11 | Review dropdown on a submitted row → **Under review** / **Approved** / **Rejected** | Status updates; persists after refresh |
 | 4.12 | **Export PDF** on a row | Daily-check PDF downloads |
 | 4.13 | Click a submission photo in admin UI | Lightbox / zoom works |
-| 4.14 | Admin nav: **Dashboard / Reports / Sites** | `/admin`, `/admin/reports`, `/admin/sites` all reachable |
+| 4.14 | Admin nav: **Dashboard / Safety Issues / Reports / Sites** | `/admin`, `/admin/issues`, `/admin/reports`, `/admin/sites` all reachable |
 | 4.15 | **New report** (admin) | Form opens; Save / Preview / Export without **Submit Safety Check** (admin path) |
 
 ---

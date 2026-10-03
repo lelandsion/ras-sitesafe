@@ -20,18 +20,15 @@ import {
   SafetyTrendCharts,
 } from '../../components/admin/SafetyReportCharts'
 import { AppHeader } from '../../components/layout/AppHeader'
-import { IssueKindBadge } from '../../components/ui/IssueKindBadge'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { useAuth } from '../../hooks/auth-context'
 import {
   aggregateSafetyMetrics,
-  buildOpenIssues,
   complianceOverTime,
   issuesByCategory,
   issuesOverTime,
   type ChecklistSubmissionRow,
 } from '../../lib/checklistAnalytics'
-import { issueKindFromCategory } from '../../lib/safetyIssueKeys'
 import { exportSubmissionToPdf } from '../../lib/exportSubmissionPdf'
 import {
   countActiveFilters,
@@ -63,20 +60,6 @@ import {
 } from '../../types/database'
 import { countStructuredIssues } from '../../lib/checklistAnalytics'
 import { parseDailySafetyChecklist } from '../../types/safetyChecklist'
-
-function formatWhen(iso: string): string {
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(new Date(iso))
-  } catch {
-    return iso
-  }
-}
 
 function inReviewQueue(status: SubmissionStatus): boolean {
   return status === 'submitted' || status === 'under_review'
@@ -178,11 +161,6 @@ export function AdminHomePage() {
 
   const trendCompliance = useMemo(
     () => complianceOverTime(checklistRows),
-    [checklistRows],
-  )
-
-  const openIssues = useMemo(
-    () => buildOpenIssues(checklistRows).slice(0, 12),
     [checklistRows],
   )
 
@@ -340,13 +318,16 @@ export function AdminHomePage() {
                     <p className="admin-metrics__label">Incidents / near miss</p>
                   </div>
                 </div>
-                <div className="admin-metrics__item">
+                <Link
+                  to="/admin/issues"
+                  className="admin-metrics__item admin-metrics__item--link"
+                >
                   <ClipboardList size={22} strokeWidth={2.25} aria-hidden />
                   <div>
                     <p className="admin-metrics__value">{metrics.openIssueCount}</p>
                     <p className="admin-metrics__label">Open issues</p>
                   </div>
-                </div>
+                </Link>
                 <div className="admin-metrics__item">
                   <Users size={22} strokeWidth={2.25} aria-hidden />
                   <div>
@@ -450,36 +431,32 @@ export function AdminHomePage() {
                 </div>
               </div>
 
-              <div className="admin-panel">
-                <h3 className="admin-panel__title">Open issues</h3>
-                {openIssues.length === 0 ? (
-                  <p className="admin-panel__empty">No open structured issues.</p>
-                ) : (
-                  <ul className="admin-issue-list">
-                    {openIssues.map((issue) => (
-                      <li
-                        key={`${issue.submissionId}-${issue.category}-${issue.summary}`}
-                        className="admin-issue"
-                      >
-                        <div>
-                          <p className="admin-issue__site">{issue.siteName}</p>
-                          <p className="admin-issue__summary">{issue.summary}</p>
-                          <p className="admin-issue__meta">
-                            <IssueKindBadge
-                              kind={issueKindFromCategory(issue.category)}
-                            />{' '}
-                            <span className="admin-issue__category">
-                              {issue.category}
-                            </span>
-                            {' · '}
-                            {issue.workerName} · {formatWhen(issue.updatedAt)}
-                          </p>
-                        </div>
-                        <StatusBadge status={issue.status} />
-                      </li>
-                    ))}
-                  </ul>
-                )}
+              <div className="admin-panel admin-panel--compact">
+                <Link
+                  to="/admin/issues"
+                  className="admin-issues-summary touch-target"
+                >
+                  <div className="admin-issues-summary__copy">
+                    <h3 className="admin-panel__title">Open issues</h3>
+                    <p className="admin-issues-summary__lead">
+                      {metrics.openIssueCount === 0
+                        ? 'No open structured issues. Create and resolve corrective actions on Safety Issues.'
+                        : 'Full list and corrective actions live on Safety Issues.'}
+                    </p>
+                  </div>
+                  <span className="admin-issues-summary__cta">
+                    <span className="admin-issues-summary__count">
+                      {metrics.openIssueCount} open
+                      {metrics.openIssueCount === 1 ? ' issue' : ' issues'}
+                    </span>
+                    <ChevronRight
+                      size={20}
+                      strokeWidth={2.5}
+                      aria-hidden
+                      className="admin-issues-summary__chevron"
+                    />
+                  </span>
+                </Link>
               </div>
 
               {actionError && (
