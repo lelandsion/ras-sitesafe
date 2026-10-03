@@ -12,8 +12,7 @@ Enums:
 - `corrective_action_status`: `open` → `in_progress` → `ready_for_review` → `resolved`
 - `corrective_action_priority`: `low` | `medium` | `high`
 
-See rendered image: [ras-sitesafe-erd.png](./ras-sitesafe-erd.png)  
-(Image may lag the Mermaid below — treat this markdown as source of truth.)
+Mermaid diagram below is the source of truth (renders on GitHub and in Mermaid-compatible viewers).
 
 ```mermaid
 erDiagram

@@ -99,11 +99,7 @@ Then create the demo Auth users and seed jobsites — [`docs/supabase-seed-notes
 
 ## ERD
 
-Current schema (aligned with [`supabase/migrations/`](supabase/migrations/) through `20261003000801_*`). Mermaid below is the source of truth; the PNG may lag.
-
-![RAS SiteSafe ERD](docs/ras-sitesafe-erd.png)
-
-Full Mermaid + notes: [`docs/ras-sitesafe-erd.md`](docs/ras-sitesafe-erd.md)
+Current schema (aligned with [`supabase/migrations/`](supabase/migrations/) through `20261003000801_*`). Mermaid is the source of truth — see below and [`docs/ras-sitesafe-erd.md`](docs/ras-sitesafe-erd.md).
 
 **Tables:** `profiles`, `sites`, `site_assignments`, `submissions`, `submission_photos`, `safety_issues`, `corrective_actions`, `saved_reports`
 
