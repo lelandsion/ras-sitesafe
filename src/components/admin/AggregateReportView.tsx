@@ -64,12 +64,21 @@ export function AggregateReportView({
 
   return (
     <article className="report-document aggregate-report" data-testid="aggregate-report">
-      <header className="report-document__header">
-        <p className="report-document__brand">RAS SiteSafe</p>
+      <header className="report-document__header aggregate-report__header">
+        <div className="aggregate-report__brand-band">
+          <div>
+            <p className="report-document__brand">RAS SiteSafe</p>
+            <p className="aggregate-report__subtitle">Monthly Safety Report</p>
+          </div>
+          <div className="aggregate-report__brand-meta">
+            <span>{siteName}</span>
+            <span>{periodLabel(year, month)}</span>
+          </div>
+        </div>
         <h1 className="report-document__title">
           {safetyReportHeading(siteName, year, month)}
         </h1>
-        <dl className="report-meta">
+        <dl className="report-meta report-meta--table">
           <div>
             <dt>Site</dt>
             <dd>{siteName}</dd>
@@ -82,6 +91,10 @@ export function AggregateReportView({
                 {formatReportRangeLabel(fromDate, toDate)}
               </span>
             </dd>
+          </div>
+          <div>
+            <dt>Range</dt>
+            <dd>{formatReportRangeLabel(fromDate, toDate)}</dd>
           </div>
           <div>
             <dt>Generated</dt>
@@ -98,7 +111,9 @@ export function AggregateReportView({
 
       {options.submissionCompliance && (
         <section className="report-section">
-          <h3 className="report-section__title">Submission compliance</h3>
+          <h3 className="report-section__title report-section__title--accent">
+            Submission compliance
+          </h3>
           <div className="agg-stat-grid" data-testid="agg-compliance">
             <StatTile
               label="Expected"
@@ -123,7 +138,7 @@ export function AggregateReportView({
 
       {options.safetySummary && (
         <section className="report-section">
-          <h3 className="report-section__title">Safety</h3>
+          <h3 className="report-section__title report-section__title--accent">Safety</h3>
           <div className="agg-stat-grid" data-testid="agg-safety">
             <StatTile label="Safety issues" value={summary.safetyIssueCount} />
             <StatTile label="High priority" value={summary.highPriorityCount} />
@@ -139,7 +154,9 @@ export function AggregateReportView({
 
       {options.safetyIssues && (
         <section className="report-section">
-          <h3 className="report-section__title">Top issues</h3>
+          <h3 className="report-section__title report-section__title--accent">
+            Top issues
+          </h3>
           <ul className="agg-top-issues" data-testid="agg-top-issues">
             {summary.topIssues.map((item) => (
               <li key={item.name} className="agg-top-issues__row">
@@ -153,7 +170,7 @@ export function AggregateReportView({
 
       {(options.submissionCompliance || options.safetyIssues) && (
         <section className="report-section">
-          <h3 className="report-section__title">Charts</h3>
+          <h3 className="report-section__title report-section__title--accent">Charts</h3>
           <div className="agg-charts">
             {options.submissionCompliance && (
               <div
@@ -216,7 +233,9 @@ export function AggregateReportView({
 
       {options.safetyIssues && summary.notableIssues.length > 0 && (
         <section className="report-section">
-          <h3 className="report-section__title">Notable issues</h3>
+          <h3 className="report-section__title report-section__title--accent">
+            Notable issues
+          </h3>
           <ul className="account-list" data-testid="agg-notable">
             {summary.notableIssues.map((line) => (
               <li key={line}>• {line}</li>
@@ -227,7 +246,9 @@ export function AggregateReportView({
 
       {options.correctiveActions && summary.correctiveLines.length > 0 && (
         <section className="report-section">
-          <h3 className="report-section__title">Corrective actions</h3>
+          <h3 className="report-section__title report-section__title--accent">
+            Corrective actions
+          </h3>
           <ul className="account-list">
             {summary.correctiveLines.map((line) => (
               <li key={line}>• {line}</li>
@@ -238,7 +259,7 @@ export function AggregateReportView({
 
       {options.photos && (
         <section className="report-section">
-          <h3 className="report-section__title">Photos</h3>
+          <h3 className="report-section__title report-section__title--accent">Photos</h3>
           <p className="report-line">
             {summary.photoCount} photo(s) on checks in this period.
           </p>

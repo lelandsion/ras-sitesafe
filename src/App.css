@@ -2390,6 +2390,125 @@
   border-radius: 0;
 }
 
+.aggregate-report__header {
+  margin: -1.25rem -1.25rem 0;
+  padding: 0 0 1rem;
+}
+
+.admin-panel--flush .aggregate-report__header {
+  margin: 0;
+}
+
+.aggregate-report__brand-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+  padding: 0.9rem 1.25rem;
+  margin-bottom: 1rem;
+  background: var(--ras-green, #045339);
+  color: #fff;
+}
+
+.aggregate-report__brand-band .report-document__brand {
+  color: #fff;
+  letter-spacing: 0.06em;
+}
+
+.aggregate-report__subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  opacity: 0.92;
+}
+
+.aggregate-report__brand-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.aggregate-report .report-document__title {
+  padding: 0 1.25rem;
+  margin-top: 0;
+}
+
+.aggregate-report__header .report-meta,
+.aggregate-report__header .agg-demo-note {
+  margin-left: 1.25rem;
+  margin-right: 1.25rem;
+}
+
+.report-meta--table {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid var(--ras-border);
+  border-radius: var(--ras-radius);
+  overflow: hidden;
+}
+
+.report-meta--table > div {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr;
+  gap: 0.5rem;
+  align-items: start;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid var(--ras-border);
+}
+
+.report-meta--table > div:nth-child(odd) {
+  background: #f5f7f6;
+}
+
+.report-meta--table > div:nth-last-child(-n + 2) {
+  border-bottom: none;
+}
+
+@media (max-width: 639px) {
+  .report-meta--table {
+    grid-template-columns: 1fr;
+  }
+
+  .report-meta--table > div:nth-last-child(-n + 2) {
+    border-bottom: 1px solid var(--ras-border);
+  }
+
+  .report-meta--table > div:last-child {
+    border-bottom: none;
+  }
+}
+
+.report-meta--table dt {
+  margin: 0;
+  align-self: center;
+}
+
+.report-meta--table dd {
+  margin: 0;
+}
+
+.report-section__title--accent {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--ras-green, #045339);
+}
+
+.report-section__title--accent::before {
+  content: '';
+  display: inline-block;
+  width: 0.22rem;
+  height: 1em;
+  border-radius: 1px;
+  background: var(--ras-green, #045339);
+}
+
 .agg-demo-note {
   margin: 0.75rem 0 0;
   padding: 0.65rem 0.75rem;

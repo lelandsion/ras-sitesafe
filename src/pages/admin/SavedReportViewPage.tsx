@@ -50,6 +50,8 @@ export function SavedReportViewPage() {
       title: report.title,
       options: report.options,
       summary: report.summary,
+      fromDate: bounds?.fromDate,
+      toDate: bounds?.toDate,
     })
   }
 

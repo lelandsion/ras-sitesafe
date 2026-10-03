@@ -192,6 +192,8 @@ export function AdminReportsPage() {
         title,
         options: includes,
         summary,
+        fromDate,
+        toDate,
       })
 
       setSaved((prev) => [data, ...prev.filter((r) => r.id !== data.id)])
