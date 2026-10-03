@@ -2393,10 +2393,10 @@
 .agg-demo-note {
   margin: 0.75rem 0 0;
   padding: 0.65rem 0.75rem;
-  border-left: 4px solid var(--ras-amber, #b45309);
-  background: #fff8ef;
+  border-left: 4px solid var(--ras-primary);
+  background: color-mix(in srgb, var(--ras-primary) 8%, white);
   font-size: 0.9rem;
-  color: var(--ras-ink, #2a2829);
+  color: var(--ras-ink);
 }
 
 .agg-stat-grid {
@@ -2735,9 +2735,68 @@
   gap: 0.75rem;
 }
 
+.issue-outcome__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
 .issue-outcome__title {
   margin: 0;
   font-size: 1.05rem;
+}
+
+.issue-kind-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.issue-kind-badge--checklist {
+  background: color-mix(in srgb, var(--ras-primary) 12%, white);
+  color: var(--ras-primary-deep);
+  border-color: color-mix(in srgb, var(--ras-primary) 35%, white);
+}
+
+.issue-kind-badge--hazard {
+  background: color-mix(in srgb, var(--ras-secondary) 18%, white);
+  color: var(--ras-primary-deep);
+  border-color: color-mix(in srgb, var(--ras-secondary) 45%, white);
+}
+
+.issue-kind-badge--incident {
+  background: color-mix(in srgb, var(--ras-danger) 12%, white);
+  color: var(--ras-danger);
+  border-color: color-mix(in srgb, var(--ras-danger) 40%, white);
+}
+
+.compliance-detail__kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0.75rem;
+}
+
+.admin-issue__meta .issue-kind-badge {
+  vertical-align: middle;
+}
+
+.admin-issue__category {
+  font-weight: 600;
+  color: var(--ras-ink);
+}
+
+.ca-modal__issue .issue-kind-badge {
+  margin-left: 0.5rem;
+  margin-right: 0.35rem;
 }
 
 .issue-outcome__desc,
@@ -2795,41 +2854,42 @@
 }
 
 .severity-badge--low {
-  background: #e8f0e6;
-  color: #2f5d2c;
+  background: color-mix(in srgb, var(--ras-primary) 12%, white);
+  color: var(--ras-primary-deep);
 }
 
 .severity-badge--medium {
-  background: #fff3d6;
-  color: #8a5a00;
+  background: color-mix(in srgb, var(--ras-secondary) 22%, white);
+  color: var(--ras-primary-deep);
 }
 
 .severity-badge--high {
-  background: #c0392b;
+  background: var(--ras-danger);
   color: #fff;
 }
 
 .ca-status-badge--open {
-  background: #fff1e6;
-  color: #b85c00;
-  border: 1px solid #e89a4d;
+  background: color-mix(in srgb, var(--ras-primary) 14%, white);
+  color: var(--ras-primary-deep);
+  border: 1px solid color-mix(in srgb, var(--ras-primary) 40%, white);
 }
 
 .ca-status-badge--in_progress {
-  background: #e7f1ff;
-  color: #1a4f8b;
-  border: 1px solid #7aa7d9;
+  background: color-mix(in srgb, var(--ras-secondary) 20%, white);
+  color: var(--ras-primary-deep);
+  border: 1px solid color-mix(in srgb, var(--ras-secondary) 50%, white);
 }
 
 .ca-status-badge--resolved {
-  background: #e5f5e8;
-  color: #1f6b36;
-  border: 1px solid #6fbf84;
+  background: color-mix(in srgb, var(--ras-success) 16%, white);
+  color: var(--ras-primary-deep);
+  border: 1px solid color-mix(in srgb, var(--ras-success) 45%, white);
 }
 
 .ca-status-badge--none {
-  background: #eee;
-  color: #555;
+  background: var(--ras-surface);
+  color: var(--ras-muted);
+  border: 1px solid var(--ras-border);
 }
 
 .ca-modal__issue {
@@ -2917,12 +2977,12 @@
 
 .today-compliance__missing {
   font-weight: 700;
-  color: #b85c00;
+  color: var(--ras-primary);
   white-space: nowrap;
 }
 
 .today-compliance__ok {
-  color: var(--ras-muted);
+  color: var(--ras-primary-deep);
   white-space: nowrap;
 }
 
@@ -2960,11 +3020,13 @@
 }
 
 .compliance-summary__cell--warn {
-  border-color: #e89a4d;
+  border-color: color-mix(in srgb, var(--ras-primary) 55%, white);
+  background: color-mix(in srgb, var(--ras-primary) 8%, white);
 }
 
 .compliance-summary__cell--alert {
-  border-color: #c0392b;
+  border-color: var(--ras-danger);
+  background: color-mix(in srgb, var(--ras-danger) 8%, white);
 }
 
 .compliance-summary__n {
@@ -3001,9 +3063,10 @@
 }
 
 .compliance-tabs__btn--active {
-  border-color: var(--ras-green);
-  background: #fff;
-  box-shadow: inset 0 -3px 0 var(--ras-green);
+  border-color: var(--ras-primary);
+  background: color-mix(in srgb, var(--ras-primary) 10%, white);
+  color: var(--ras-primary-deep);
+  box-shadow: inset 0 -3px 0 var(--ras-primary);
 }
 
 .compliance-layout {
@@ -3027,18 +3090,20 @@
 }
 
 .compliance-pill--submitted {
-  background: #e5f5e8;
-  color: #1f6b36;
+  background: color-mix(in srgb, var(--ras-success) 16%, white);
+  color: var(--ras-primary-deep);
 }
 
 .compliance-pill--safety_issue {
-  background: #fff1e6;
-  color: #b85c00;
+  background: color-mix(in srgb, var(--ras-primary) 14%, white);
+  color: var(--ras-primary-deep);
+  border: 1px solid color-mix(in srgb, var(--ras-primary) 40%, white);
 }
 
 .compliance-pill--not_submitted {
-  background: #eee;
-  color: #555;
+  background: var(--ras-surface);
+  color: var(--ras-muted);
+  border: 1px solid var(--ras-border);
 }
 
 .admin-table__row--clickable {
@@ -3046,7 +3111,7 @@
 }
 
 .admin-table__row--clickable:hover {
-  background: color-mix(in srgb, var(--ras-sand, #f3efe6) 55%, white);
+  background: color-mix(in srgb, var(--ras-primary) 8%, white);
 }
 
 .admin-table__row--selected {

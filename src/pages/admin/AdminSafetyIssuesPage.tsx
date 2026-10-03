@@ -25,6 +25,8 @@ import {
   CA_STATUS_LABELS,
   ISSUE_SEVERITY_LABELS,
 } from '../../types/correctiveActions'
+import { issueKindFromChecklistKey } from '../../lib/safetyIssueKeys'
+import { IssueKindBadge } from '../../components/ui/IssueKindBadge'
 
 export function AdminSafetyIssuesPage() {
   const { profile, user, signOut } = useAuth()
@@ -204,6 +206,7 @@ export function AdminSafetyIssuesPage() {
                     <tr>
                       <th scope="col">Site</th>
                       <th scope="col">Worker</th>
+                      <th scope="col">Type</th>
                       <th scope="col">Item</th>
                       <th scope="col">Severity</th>
                       <th scope="col">CA status</th>
@@ -215,6 +218,9 @@ export function AdminSafetyIssuesPage() {
                     {items.map((issue) => {
                       const ca = issue.corrective_action
                       const busy = busyId === ca?.id
+                      const kind = issueKindFromChecklistKey(
+                        issue.checklist_item_key,
+                      )
                       return (
                         <tr key={issue.id}>
                           <td>
@@ -227,6 +233,9 @@ export function AdminSafetyIssuesPage() {
                           </td>
                           <td>
                             {issue.submission?.submitter?.display_name ?? '—'}
+                          </td>
+                          <td>
+                            <IssueKindBadge kind={kind} />
                           </td>
                           <td>{issue.item_label}</td>
                           <td>

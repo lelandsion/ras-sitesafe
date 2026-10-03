@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { PHOTO_MAX_BYTES } from '../types/database'
-import { validatePhotoFile } from './photosService'
+import { resolvePhotoContentType, validatePhotoFile } from './photosService'
 
 vi.mock('../lib/supabase', () => ({
   supabase: {
@@ -24,11 +24,28 @@ function fakeFile(overrides: {
   return file
 }
 
+describe('resolvePhotoContentType', () => {
+  it('falls back to extension when File.type is empty', () => {
+    expect(
+      resolvePhotoContentType(fakeFile({ type: '', name: 'site.jpg' })),
+    ).toBe('image/jpeg')
+    expect(
+      resolvePhotoContentType(fakeFile({ type: '', name: 'shot.PNG' })),
+    ).toBe('image/png')
+  })
+})
+
 describe('validatePhotoFile', () => {
   it('accepts JPEG, PNG, and WebP under the size limit', () => {
     expect(validatePhotoFile(fakeFile({ type: 'image/jpeg' }))).toBeNull()
     expect(validatePhotoFile(fakeFile({ type: 'image/png' }))).toBeNull()
     expect(validatePhotoFile(fakeFile({ type: 'image/webp' }))).toBeNull()
+  })
+
+  it('accepts empty MIME when extension is allowed', () => {
+    expect(
+      validatePhotoFile(fakeFile({ type: '', name: 'mobile-pick.jpeg' })),
+    ).toBeNull()
   })
 
   it('rejects disallowed MIME types', () => {

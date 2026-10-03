@@ -11,6 +11,7 @@ import {
 import { AdminNav } from '../../components/admin/AdminNav'
 import { AppHeader } from '../../components/layout/AppHeader'
 import { useAuth } from '../../hooks/auth-context'
+import { IssueKindBadge } from '../../components/ui/IssueKindBadge'
 import {
   filterComplianceRows,
   localDateISO,
@@ -334,8 +335,22 @@ export function AdminDailyCompliancePage() {
                         ? ` · ${selected.issueCount} issue${selected.issueCount === 1 ? '' : 's'}`
                         : ''}
                     </p>
+                    {selected.issueKinds.length > 0 && (
+                      <p
+                        className="compliance-detail__kinds"
+                        aria-label="Issue types"
+                      >
+                        {selected.issueKinds.map((kind) => (
+                          <IssueKindBadge key={kind} kind={kind} />
+                        ))}
+                      </p>
+                    )}
                     <p className="admin-panel__lead">
                       Submitted {formatTime(selected.submittedAt)} on {dateISO}.
+                      {selected.issueKinds.includes('hazard') &&
+                      selected.issueKinds.includes('incident')
+                        ? ' Hazard and incident are separate issue types — not duplicates.'
+                        : ''}
                     </p>
                     {selected.submissionId && (
                       <Link

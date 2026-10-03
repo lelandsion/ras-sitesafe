@@ -89,6 +89,9 @@ describe('buildComplianceRows', () => {
 
     expect(rows).toHaveLength(2)
     expect(rows.find((r) => r.framerId === 'f1')?.status).toBe('safety_issue')
+    expect(rows.find((r) => r.framerId === 'f1')?.issueKinds).toEqual([
+      'checklist',
+    ])
     expect(rows.find((r) => r.framerId === 'f2')?.status).toBe('not_submitted')
     expect(rows.find((r) => r.framerId === 'f3')).toBeUndefined()
 
@@ -102,6 +105,46 @@ describe('buildComplianceRows', () => {
 
     expect(filterComplianceRows(rows, 'missing')).toHaveLength(1)
     expect(filterComplianceRows(rows, 'issues')).toHaveLength(1)
+  })
+
+  it('lists hazard and incident as distinct kinds (not duplicates)', () => {
+    const checklist = emptyDailySafetyChecklist('2026-10-02')
+    checklist.hazards = {
+      present: true,
+      description: 'Open trench',
+      severity: 'high',
+    }
+    checklist.incidentOrNearMiss = {
+      occurred: true,
+      detail: 'Near miss on ladder',
+    }
+
+    const rows = buildComplianceRows({
+      siteId: 'site-1',
+      dateISO: '2026-10-02',
+      assignments: [
+        {
+          framer_id: 'f1',
+          assigned_at: '2026-10-01T00:00:00Z',
+          unassigned_at: null,
+          framer: { id: 'f1', display_name: 'Daniel Ortiz' },
+        },
+      ],
+      submissions: [
+        {
+          id: 'sub-1',
+          site_id: 'site-1',
+          submitted_by: 'f1',
+          status: 'submitted',
+          checklist,
+          created_at: '2026-10-02T14:00:00Z',
+          updated_at: '2026-10-02T14:00:00Z',
+        },
+      ],
+    })
+
+    expect(rows[0]?.issueCount).toBe(2)
+    expect(rows[0]?.issueKinds).toEqual(['hazard', 'incident'])
   })
 
   it('ignores draft submissions for the date', () => {

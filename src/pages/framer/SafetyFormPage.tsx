@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -95,6 +102,11 @@ export function SafetyFormPage({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
+
+  /** Avoid draft-create race when first photo upload runs before setState lands. */
+  const submissionIdRef = useRef<string | null>(submissionId)
+  submissionIdRef.current = submissionId
+  const draftCreatePromiseRef = useRef<Promise<string | null> | null>(null)
 
   function updateChecklist(next: DailySafetyChecklist) {
     setChecklist(next)
@@ -212,25 +224,37 @@ export function SafetyFormPage({
       return null
     }
 
-    if (submissionId) return submissionId
+    if (submissionIdRef.current) return submissionIdRef.current
+    if (draftCreatePromiseRef.current) return draftCreatePromiseRef.current
 
-    const { data, error: createError } = await createSubmission({
-      site_id: siteId,
-      submitted_by: user.id,
-      notes: notes.trim() || null,
-      checklist: serializeChecklist(checklist),
-      status: 'draft',
-    })
+    // Create draft for photo FK / storage path — do NOT navigate here.
+    // Navigating /new → /submissions/:id remounts the form (different Route)
+    // and races the in-flight upload (first select appears to fail; second works).
+    draftCreatePromiseRef.current = (async () => {
+      const { data, error: createError } = await createSubmission({
+        site_id: siteId,
+        submitted_by: user.id,
+        notes: notes.trim() || null,
+        checklist: serializeChecklist(checklist),
+        status: 'draft',
+      })
 
-    if (createError || !data) {
-      setError(createError ?? 'Could not create draft.')
-      return null
+      if (createError || !data) {
+        setError(createError ?? 'Could not create draft.')
+        return null
+      }
+
+      submissionIdRef.current = data.id
+      setSubmissionId(data.id)
+      setStatus(data.status)
+      return data.id
+    })()
+
+    try {
+      return await draftCreatePromiseRef.current
+    } finally {
+      draftCreatePromiseRef.current = null
     }
-
-    setSubmissionId(data.id)
-    setStatus(data.status)
-    navigate(`${basePath}/${data.id}`, { replace: true })
-    return data.id
   }
 
   function setPhotosForKind(kind: SubmissionPhotoKind, kindPhotos: SubmissionPhoto[]) {
@@ -290,7 +314,7 @@ export function SafetyFormPage({
     const draftsToSync = reconcileIssueDrafts(checklist, issueDrafts)
     setIssueDrafts(draftsToSync)
 
-    let targetId = submissionId
+    let targetId = submissionIdRef.current
     if (!targetId) {
       const { data, error: createError } = await createSubmission({
         submitted_by: user.id,
@@ -302,6 +326,7 @@ export function SafetyFormPage({
         return
       }
       targetId = data.id
+      submissionIdRef.current = data.id
       setSubmissionId(data.id)
       setStatus(data.status)
     } else {

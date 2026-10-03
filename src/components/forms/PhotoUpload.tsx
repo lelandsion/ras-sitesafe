@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Camera, ImagePlus, Trash2 } from 'lucide-react'
 import { PhotoLightbox } from '../ui/PhotoLightbox'
 import {
@@ -105,6 +105,9 @@ export function PhotoUpload({
   const inputId = useId()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** Keep latest kind-scoped list for multi-file / race-safe appends. */
+  const photosRef = useRef(photos)
+  photosRef.current = photos
 
   const attachBlocked = Boolean(blockedHint)
   const pickerDisabled = Boolean(disabled || busy || attachBlocked)
@@ -121,6 +124,7 @@ export function PhotoUpload({
         setBusy(false)
         return
       }
+      // Auto-create draft before first upload so FK/storage path have a row.
       targetSubmissionId = await ensureSubmissionId()
       if (!targetSubmissionId) {
         setBusy(false)
@@ -128,7 +132,7 @@ export function PhotoUpload({
       }
     }
 
-    const next = [...photos]
+    let next = [...photosRef.current]
     for (const file of Array.from(fileList)) {
       const localError = validatePhotoFile(file)
       if (localError) {
@@ -145,10 +149,12 @@ export function PhotoUpload({
         setError(uploadError ?? 'Upload failed.')
         continue
       }
-      next.push(data)
+      next = [...next, data]
+      photosRef.current = next
+      // Push after each file so the thumb shows immediately.
+      onChange(next)
     }
 
-    onChange(next)
     setBusy(false)
   }
 
@@ -162,14 +168,16 @@ export function PhotoUpload({
       setBusy(false)
       return
     }
-    onChange(photos.filter((p) => p.id !== photo.id))
+    const next = photosRef.current.filter((p) => p.id !== photo.id)
+    photosRef.current = next
+    onChange(next)
     setBusy(false)
   }
 
   const maxMb = Math.round(PHOTO_MAX_BYTES / (1024 * 1024))
 
   return (
-    <div className="photo-upload">
+    <div className="photo-upload" data-testid={`photo-upload-${photoKind}`}>
       <div className="photo-upload__header">
         {showTitle ? <h3 className="photo-upload__title">{title}</h3> : null}
         <p className="photo-upload__hint">

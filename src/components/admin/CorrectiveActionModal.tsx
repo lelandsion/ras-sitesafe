@@ -8,6 +8,8 @@ import {
   CA_PRIORITY_LABELS,
   ISSUE_SEVERITY_LABELS,
 } from '../../types/correctiveActions'
+import { issueKindFromChecklistKey } from '../../lib/safetyIssueKeys'
+import { IssueKindBadge } from '../ui/IssueKindBadge'
 
 type Props = {
   open: boolean
@@ -77,6 +79,9 @@ export function CorrectiveActionModal({
         <div className="ca-modal__issue">
           <p>
             <strong>{issue.item_label}</strong>
+            <IssueKindBadge
+              kind={issueKindFromChecklistKey(issue.checklist_item_key)}
+            />
             <span
               className={`severity-badge severity-badge--${issue.severity}`}
             >

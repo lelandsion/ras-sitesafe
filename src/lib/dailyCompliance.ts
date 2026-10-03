@@ -1,6 +1,12 @@
 import type { SiteAssignment } from '../types/database'
 import { parseDailySafetyChecklist } from '../types/safetyChecklist'
 import { countStructuredIssues } from './checklistAnalytics'
+import {
+  issueKindFromChecklistKey,
+  requiredIssueSpecs,
+  SAFETY_ISSUE_KIND_LABELS,
+  type SafetyIssueKind,
+} from './safetyIssueKeys'
 
 export type ComplianceWorkerStatus =
   | 'submitted'
@@ -27,6 +33,8 @@ export type ComplianceWorkerRow = {
   submittedAt: string | null
   submissionId: string | null
   issueCount: number
+  /** Distinct kinds present (hazard vs incident vs checklist failure). */
+  issueKinds: SafetyIssueKind[]
 }
 
 export type ComplianceSummary = {
@@ -122,6 +130,7 @@ export function buildComplianceRows(params: {
         submittedAt: null,
         submissionId: null,
         issueCount: 0,
+        issueKinds: [],
       })
       continue
     }
@@ -131,6 +140,10 @@ export function buildComplianceRows(params: {
       sub.created_at.slice(0, 10),
     )
     const issueCount = countStructuredIssues(checklist)
+    const kindSet = new Set<SafetyIssueKind>()
+    for (const spec of requiredIssueSpecs(checklist)) {
+      kindSet.add(issueKindFromChecklistKey(spec.key))
+    }
     rows.push({
       framerId: a.framer_id,
       displayName: name,
@@ -138,6 +151,7 @@ export function buildComplianceRows(params: {
       submittedAt: sub.updated_at,
       submissionId: sub.id,
       issueCount,
+      issueKinds: [...kindSet],
     })
   }
 
@@ -188,3 +202,9 @@ export const COMPLIANCE_STATUS_LABELS: Record<ComplianceWorkerStatus, string> =
     safety_issue: 'Safety Issue',
     not_submitted: 'Not Submitted',
   }
+
+/** Short label list for compliance detail (e.g. "Hazard + Incident"). */
+export function formatIssueKindSummary(kinds: SafetyIssueKind[]): string {
+  if (kinds.length === 0) return ''
+  return kinds.map((k) => SAFETY_ISSUE_KIND_LABELS[k]).join(' · ')
+}

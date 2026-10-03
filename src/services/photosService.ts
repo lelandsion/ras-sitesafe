@@ -11,8 +11,20 @@ import { humanizeDbError } from './sitesService'
 
 export const PHOTO_FILE_ACCEPT = PHOTO_ALLOWED_TYPES.join(',')
 
+/** Resolve MIME from File.type or extension (some mobile picks omit type). */
+export function resolvePhotoContentType(file: File): PhotoContentType | null {
+  if (PHOTO_ALLOWED_TYPES.includes(file.type as PhotoContentType)) {
+    return file.type as PhotoContentType
+  }
+  const name = file.name.toLowerCase()
+  if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg'
+  if (name.endsWith('.png')) return 'image/png'
+  if (name.endsWith('.webp')) return 'image/webp'
+  return null
+}
+
 export function validatePhotoFile(file: File): string | null {
-  if (!PHOTO_ALLOWED_TYPES.includes(file.type as PhotoContentType)) {
+  if (!resolvePhotoContentType(file)) {
     return 'Photos must be JPEG, PNG, or WebP.'
   }
   if (file.size <= 0) {
@@ -33,10 +45,11 @@ function extensionForType(type: PhotoContentType): string {
 function buildStoragePath(
   userId: string,
   submissionId: string,
-  file: File,
+  contentType: PhotoContentType,
+  fileName: string,
 ): string {
-  const ext = extensionForType(file.type as PhotoContentType)
-  const safeBase = file.name
+  const ext = extensionForType(contentType)
+  const safeBase = fileName
     .replace(/\.[^.]+$/, '')
     .replace(/[^a-zA-Z0-9_-]/g, '_')
     .slice(0, 40)
@@ -132,11 +145,15 @@ export async function uploadSubmissionPhoto(params: {
     return { data: null, error: validation }
   }
 
-  const contentType = params.file.type as PhotoContentType
+  const contentType = resolvePhotoContentType(params.file)
+  if (!contentType) {
+    return { data: null, error: 'Photos must be JPEG, PNG, or WebP.' }
+  }
   const storagePath = buildStoragePath(
     params.userId,
     params.submissionId,
-    params.file,
+    contentType,
+    params.file.name,
   )
 
   const { error: uploadError } = await supabase.storage

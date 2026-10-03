@@ -22,7 +22,7 @@ const STATUS_ORDER: SubmissionStatus[] = [
 const STATUS_FILL: Record<SubmissionStatus, string> = {
   draft: '#9ca3af',
   submitted: '#045339',
-  under_review: '#b45309',
+  under_review: '#0d553a',
   approved: '#033d2a',
   rejected: '#9b2c2c',
 }

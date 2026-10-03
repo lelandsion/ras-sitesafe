@@ -14,10 +14,10 @@ import {
 
 const CATEGORY_FILL = [
   '#045339',
+  '#0d553a',
   '#033d2a',
-  '#b45309',
   '#9b2c2c',
-  '#6b7280',
+  '#3e3e3e',
 ]
 
 type IssuesByCategoryProps = {

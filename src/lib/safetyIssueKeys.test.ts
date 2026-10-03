@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { emptyDailySafetyChecklist } from '../types/safetyChecklist'
 import {
+  issueKindFromCategory,
+  issueKindFromChecklistKey,
   reconcileIssueDrafts,
   requiredIssueSpecs,
   validateIssueDrafts,
@@ -52,6 +54,23 @@ describe('reconcileIssueDrafts', () => {
     c.ppe.hardHat = 'yes'
     const next = reconcileIssueDrafts(c, drafts)
     expect(Object.keys(next)).toEqual([])
+  })
+})
+
+describe('issueKindFromChecklistKey', () => {
+  it('differentiates hazard, incident, and checklist failures', () => {
+    expect(issueKindFromChecklistKey('hazards')).toBe('hazard')
+    expect(issueKindFromChecklistKey('incidentOrNearMiss')).toBe('incident')
+    expect(issueKindFromChecklistKey('ppe.hardHat')).toBe('checklist')
+    expect(issueKindFromChecklistKey('fallProtection.ladders')).toBe(
+      'checklist',
+    )
+  })
+
+  it('maps report categories the same way', () => {
+    expect(issueKindFromCategory('Hazard')).toBe('hazard')
+    expect(issueKindFromCategory('Incident / near miss')).toBe('incident')
+    expect(issueKindFromCategory('PPE')).toBe('checklist')
   })
 })
 

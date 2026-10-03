@@ -169,3 +169,27 @@ export const ISSUE_SEVERITY_LABELS: Record<IssueSeverity, string> = {
   medium: 'Medium',
   high: 'High',
 }
+
+/** UI kind for open issues — hazards and incidents are distinct, not duplicates. */
+export type SafetyIssueKind = 'checklist' | 'hazard' | 'incident'
+
+export const SAFETY_ISSUE_KIND_LABELS: Record<SafetyIssueKind, string> = {
+  checklist: 'Checklist failure',
+  hazard: 'Hazard',
+  incident: 'Incident',
+}
+
+export function issueKindFromChecklistKey(key: string): SafetyIssueKind {
+  if (key === 'hazards') return 'hazard'
+  if (key === 'incidentOrNearMiss') return 'incident'
+  return 'checklist'
+}
+
+/** Map Site Safety Report open-issue categories to the same kind badges. */
+export function issueKindFromCategory(
+  category: string,
+): SafetyIssueKind {
+  if (category === 'Hazard') return 'hazard'
+  if (category === 'Incident / near miss') return 'incident'
+  return 'checklist'
+}

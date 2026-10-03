@@ -4,6 +4,8 @@ import {
   CA_STATUS_LABELS,
   ISSUE_SEVERITY_LABELS,
 } from '../../types/correctiveActions'
+import { issueKindFromChecklistKey } from '../../lib/safetyIssueKeys'
+import { IssueKindBadge } from '../ui/IssueKindBadge'
 
 type Props = {
   issues: SafetyIssueWithDetails[]
@@ -43,11 +45,16 @@ export function SubmissionIssuesPanel({ issues, loading }: Props) {
             <li key={issue.id} className="issue-outcome">
               <div className="issue-outcome__head">
                 <h4 className="issue-outcome__title">{issue.item_label}</h4>
-                <span
-                  className={`severity-badge severity-badge--${issue.severity}`}
-                >
-                  {ISSUE_SEVERITY_LABELS[issue.severity]}
-                </span>
+                <div className="issue-outcome__badges">
+                  <IssueKindBadge
+                    kind={issueKindFromChecklistKey(issue.checklist_item_key)}
+                  />
+                  <span
+                    className={`severity-badge severity-badge--${issue.severity}`}
+                  >
+                    {ISSUE_SEVERITY_LABELS[issue.severity]}
+                  </span>
+                </div>
               </div>
               <p className="issue-outcome__desc">{issue.description}</p>
               {issue.immediate_action.trim() && (

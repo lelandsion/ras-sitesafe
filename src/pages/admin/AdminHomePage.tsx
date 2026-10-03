@@ -20,6 +20,7 @@ import {
   SafetyTrendCharts,
 } from '../../components/admin/SafetyReportCharts'
 import { AppHeader } from '../../components/layout/AppHeader'
+import { IssueKindBadge } from '../../components/ui/IssueKindBadge'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { useAuth } from '../../hooks/auth-context'
 import {
@@ -30,6 +31,7 @@ import {
   issuesOverTime,
   type ChecklistSubmissionRow,
 } from '../../lib/checklistAnalytics'
+import { issueKindFromCategory } from '../../lib/safetyIssueKeys'
 import { exportSubmissionToPdf } from '../../lib/exportSubmissionPdf'
 import {
   countActiveFilters,
@@ -445,13 +447,22 @@ export function AdminHomePage() {
                 ) : (
                   <ul className="admin-issue-list">
                     {openIssues.map((issue) => (
-                      <li key={`${issue.submissionId}-${issue.summary}`} className="admin-issue">
+                      <li
+                        key={`${issue.submissionId}-${issue.category}-${issue.summary}`}
+                        className="admin-issue"
+                      >
                         <div>
                           <p className="admin-issue__site">{issue.siteName}</p>
                           <p className="admin-issue__summary">{issue.summary}</p>
                           <p className="admin-issue__meta">
-                            {issue.category} · {issue.workerName} ·{' '}
-                            {formatWhen(issue.updatedAt)}
+                            <IssueKindBadge
+                              kind={issueKindFromCategory(issue.category)}
+                            />{' '}
+                            <span className="admin-issue__category">
+                              {issue.category}
+                            </span>
+                            {' · '}
+                            {issue.workerName} · {formatWhen(issue.updatedAt)}
                           </p>
                         </div>
                         <StatusBadge status={issue.status} />
