@@ -1,13 +1,69 @@
+import { reviewPatchOnCorrectiveActionCreate } from '../lib/submissionAttention'
 import { supabase } from '../lib/supabase'
 import type {
   CorrectiveAction,
   CorrectiveActionPriority,
   CorrectiveActionStatus,
 } from '../types/correctiveActions'
+import type { SubmissionStatus } from '../types/database'
 import { humanizeDbError } from './sitesService'
 
 const CA_SELECT =
   'id, safety_issue_id, required_action, priority, status, assignee_id, due_date, resolution_notes, resolved_by, resolved_at, created_by, created_at, updated_at'
+
+/**
+ * After creating a CA, mark the linked submission under_review when appropriate.
+ * Does not auto-approve on CA resolve; does not downgrade approved/rejected.
+ * Failures here are best-effort — the CA insert already succeeded.
+ */
+export async function markLinkedSubmissionUnderReview(input: {
+  safety_issue_id: string
+  reviewerId: string
+}): Promise<{ error: string | null }> {
+  const { data: issue, error: issueError } = await supabase
+    .from('safety_issues')
+    .select('id, submission_id')
+    .eq('id', input.safety_issue_id)
+    .maybeSingle()
+
+  if (issueError) {
+    return { error: humanizeDbError(issueError.message) }
+  }
+  if (!issue?.submission_id) {
+    return { error: null }
+  }
+
+  const { data: submission, error: subError } = await supabase
+    .from('submissions')
+    .select('id, status')
+    .eq('id', issue.submission_id)
+    .maybeSingle()
+
+  if (subError) {
+    return { error: humanizeDbError(subError.message) }
+  }
+  if (!submission) {
+    return { error: null }
+  }
+
+  const patch = reviewPatchOnCorrectiveActionCreate(
+    submission.status as SubmissionStatus,
+    input.reviewerId,
+  )
+  if (!patch) {
+    return { error: null }
+  }
+
+  const { error: updateError } = await supabase
+    .from('submissions')
+    .update(patch)
+    .eq('id', submission.id)
+
+  if (updateError) {
+    return { error: humanizeDbError(updateError.message) }
+  }
+  return { error: null }
+}
 
 export async function createCorrectiveAction(input: {
   safety_issue_id: string
@@ -39,6 +95,12 @@ export async function createCorrectiveAction(input: {
   if (error) {
     return { data: null, error: humanizeDbError(error.message) }
   }
+
+  // Best-effort: CA exists even if status stamp fails.
+  await markLinkedSubmissionUnderReview({
+    safety_issue_id: input.safety_issue_id,
+    reviewerId: input.created_by,
+  })
 
   return { data: data as CorrectiveAction, error: null }
 }

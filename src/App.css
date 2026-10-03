@@ -2899,18 +2899,6 @@ select.field__input {
   margin: 0;
 }
 
-.issue-capture__file-input {
-  max-width: 100%;
-}
-
-.issue-capture__file {
-  display: block;
-  margin-top: 0.35rem;
-  font-size: 0.85rem;
-  color: var(--ras-muted);
-  overflow-wrap: anywhere;
-}
-
 .issue-outcome-list,
 .safety-issue-list {
   list-style: none;

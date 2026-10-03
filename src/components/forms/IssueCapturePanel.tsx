@@ -76,25 +76,6 @@ export function IssueCapturePanel({ draft, disabled, onChange }: Props) {
             placeholder="What did the crew do right away?"
           />
         </label>
-
-        <label className="safety-form__field">
-          <span>Photo (optional)</span>
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="safety-form__control issue-capture__file-input"
-            disabled={disabled}
-            onChange={(e) => {
-              const file = e.target.files?.[0] ?? null
-              onChange({ ...draft, pendingPhoto: file })
-            }}
-          />
-          {draft.pendingPhoto && (
-            <span className="issue-capture__file">
-              {draft.pendingPhoto.name}
-            </span>
-          )}
-        </label>
       </div>
     </div>
   )

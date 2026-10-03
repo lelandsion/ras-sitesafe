@@ -41,6 +41,7 @@ import {
   uniqueSitesFromSubmissions,
   uniqueWorkersFromSubmissions,
 } from '../../lib/filterSubmissions'
+import { sortAdminSubmissions } from '../../lib/submissionAttention'
 import { localDateISO } from '../../lib/dailyCompliance'
 import {
   loadTodayComplianceOverview,
@@ -147,7 +148,7 @@ export function AdminHomePage() {
   }, [load])
 
   const filteredItems = useMemo(
-    () => filterSubmissions(items, filters),
+    () => sortAdminSubmissions(filterSubmissions(items, filters)),
     [items, filters],
   )
 

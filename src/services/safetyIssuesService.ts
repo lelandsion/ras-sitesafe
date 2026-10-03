@@ -1,13 +1,11 @@
 import { supabase } from '../lib/supabase'
 import type { IssueDraft } from '../lib/safetyIssueKeys'
-import { PHOTO_BUCKET, type PhotoContentType } from '../types/database'
 import type {
   CorrectiveAction,
   SafetyIssue,
   SafetyIssueWithDetails,
 } from '../types/correctiveActions'
 import { humanizeDbError } from './sitesService'
-import { resolvePhotoContentType, validatePhotoFile } from './photosService'
 
 function normalizeEmbed<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null
@@ -224,49 +222,13 @@ export async function syncSafetyIssuesForSubmission(params: {
     }
   })
 
-  const { data: upserted, error: upsertError } = await supabase
+  const { error: upsertError } = await supabase
     .from('safety_issues')
     .upsert(rows, { onConflict: 'submission_id,checklist_item_key' })
     .select('id, checklist_item_key')
 
   if (upsertError) {
     return { error: humanizeDbError(upsertError.message) }
-  }
-
-  // Optional pending photos — one per issue, after upsert has ids.
-  for (const row of upserted ?? []) {
-    const draft = drafts[row.checklist_item_key]
-    const file = draft?.pendingPhoto
-    if (!file) continue
-    const validation = validatePhotoFile(file)
-    if (validation) continue
-    const contentType = resolvePhotoContentType(file)
-    if (!contentType) continue
-
-    const ext =
-      contentType === 'image/png'
-        ? 'png'
-        : contentType === 'image/webp'
-          ? 'webp'
-          : 'jpg'
-    const storagePath = `${createdBy}/${submissionId}/issue-${row.id}-${Date.now()}.${ext}`
-
-    const { error: uploadError } = await supabase.storage
-      .from(PHOTO_BUCKET)
-      .upload(storagePath, file, {
-        contentType,
-        upsert: false,
-      })
-    if (uploadError) continue
-
-    await supabase.from('submission_photos').insert({
-      submission_id: submissionId,
-      storage_path: storagePath,
-      content_type: contentType as PhotoContentType,
-      byte_size: file.size,
-      photo_kind: 'issue',
-      safety_issue_id: row.id,
-    })
   }
 
   return { error: null }

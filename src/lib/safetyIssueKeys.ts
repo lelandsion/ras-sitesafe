@@ -104,8 +104,6 @@ export type IssueDraft = {
   description: string
   severity: IssueSeverity | null
   immediate_action: string
-  /** Local optional photo before upload (not persisted in DB JSON). */
-  pendingPhoto?: File | null
 }
 
 export function emptyIssueDraft(spec: IssueFieldSpec): IssueDraft {
@@ -115,7 +113,6 @@ export function emptyIssueDraft(spec: IssueFieldSpec): IssueDraft {
     description: spec.defaultDescription?.trim() ?? '',
     severity: spec.defaultSeverity ?? null,
     immediate_action: '',
-    pendingPhoto: null,
   }
 }
 

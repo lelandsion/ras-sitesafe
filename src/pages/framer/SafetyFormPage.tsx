@@ -199,7 +199,6 @@ export function SafetyFormPage({
               description: issue.description,
               severity: issue.severity,
               immediate_action: issue.immediate_action,
-              pendingPhoto: null,
             }
           }
           setIssueDrafts(reconcileIssueDrafts(parsed, fromDb))
@@ -350,15 +349,6 @@ export function SafetyFormPage({
       setSaving(false)
       return
     }
-
-    // Clear pending local files after successful sync.
-    setIssueDrafts((prev) => {
-      const cleared: Record<string, IssueDraft> = {}
-      for (const [k, d] of Object.entries(prev)) {
-        cleared[k] = { ...d, pendingPhoto: null }
-      }
-      return cleared
-    })
 
     const refreshed = await listIssuesForSubmission(targetId)
     if (!refreshed.error) setSavedIssues(refreshed.data)
@@ -997,24 +987,6 @@ export function SafetyFormPage({
                           placeholder="What did the crew do right away?"
                         />
                       </label>
-                      <label className="safety-form__field">
-                        <span>Issue photo (optional)</span>
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp"
-                          className="safety-form__control"
-                          disabled={saving}
-                          onChange={(e) =>
-                            setIssueDrafts((prev) => ({
-                              ...prev,
-                              hazards: {
-                                ...prev.hazards!,
-                                pendingPhoto: e.target.files?.[0] ?? null,
-                              },
-                            }))
-                          }
-                        />
-                      </label>
                     </>
                   )}
                 </>
@@ -1126,24 +1098,6 @@ export function SafetyFormPage({
                             }))
                           }
                           placeholder="What did the crew do right away?"
-                        />
-                      </label>
-                      <label className="safety-form__field">
-                        <span>Issue photo (optional)</span>
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp"
-                          className="safety-form__control"
-                          disabled={saving}
-                          onChange={(e) =>
-                            setIssueDrafts((prev) => ({
-                              ...prev,
-                              incidentOrNearMiss: {
-                                ...prev.incidentOrNearMiss!,
-                                pendingPhoto: e.target.files?.[0] ?? null,
-                              },
-                            }))
-                          }
                         />
                       </label>
                     </>
