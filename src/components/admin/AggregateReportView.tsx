@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -9,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { getPhotoSignedUrl } from '../../services/photosService'
 import {
   formatReportRangeLabel,
   periodLabel,
@@ -46,6 +48,14 @@ function StatTile({
   )
 }
 
+type ResolvedPhoto = {
+  id: string
+  url: string | null
+  kind: string
+  checkDate: string
+  workerName: string
+}
+
 export function AggregateReportView({
   siteName,
   year,
@@ -61,6 +71,41 @@ export function AggregateReportView({
     { name: 'Submitted', count: summary.submissionCount },
     { name: 'Missing', count: summary.missingSubmissions },
   ]
+
+  const appendixIssues = summary.appendixIssues ?? []
+  const appendixPhotos = summary.appendixPhotos ?? []
+  const showAppendix =
+    (options.safetyIssues && appendixIssues.length > 0) ||
+    (options.photos && (appendixPhotos.length > 0 || summary.photoCount > 0))
+
+  const [appendixOpen, setAppendixOpen] = useState(true)
+  const [resolvedPhotos, setResolvedPhotos] = useState<ResolvedPhoto[]>([])
+  useEffect(() => {
+    const photos = summary.appendixPhotos ?? []
+    if (!options.photos || photos.length === 0) {
+      setResolvedPhotos([])
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      const next: ResolvedPhoto[] = []
+      for (const photo of photos) {
+        const { url } = await getPhotoSignedUrl(photo.storagePath)
+        if (cancelled) return
+        next.push({
+          id: photo.id,
+          url,
+          kind: photo.kind,
+          checkDate: photo.checkDate,
+          workerName: photo.workerName,
+        })
+      }
+      if (!cancelled) setResolvedPhotos(next)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [options.photos, summary.appendixPhotos])
 
   return (
     <article className="report-document aggregate-report" data-testid="aggregate-report">
@@ -262,7 +307,107 @@ export function AggregateReportView({
           <h3 className="report-section__title report-section__title--accent">Photos</h3>
           <p className="report-line">
             {summary.photoCount} photo(s) on checks in this period.
+            {appendixPhotos.length > 0
+              ? ` Showing ${appendixPhotos.length} in the Appendix.`
+              : ''}
           </p>
+        </section>
+      )}
+
+      {showAppendix && (
+        <section className="report-section agg-appendix" data-testid="agg-appendix">
+          <button
+            type="button"
+            className="agg-appendix__toggle"
+            aria-expanded={appendixOpen}
+            onClick={() => setAppendixOpen((open) => !open)}
+          >
+            <h3 className="report-section__title report-section__title--accent">
+              Appendix
+            </h3>
+            <span className="agg-appendix__chevron" aria-hidden>
+              {appendixOpen ? '▾' : '▸'}
+            </span>
+          </button>
+          {appendixOpen && (
+            <div className="agg-appendix__body">
+              {options.safetyIssues && (
+                <div className="agg-appendix__block">
+                  <h4 className="agg-appendix__heading">
+                    All safety issues ({appendixIssues.length})
+                  </h4>
+                  {appendixIssues.length === 0 ? (
+                    <p className="report-line">No safety issues in this period.</p>
+                  ) : (
+                    <ul className="agg-appendix__issues" data-testid="agg-appendix-issues">
+                      {appendixIssues.map((issue, idx) => (
+                        <li
+                          key={`${issue.date}-${issue.category}-${issue.summary}-${idx}`}
+                          className="agg-appendix__issue"
+                        >
+                          <div className="agg-appendix__issue-meta">
+                            <span>{issue.date || '—'}</span>
+                            <span>{issue.workerName || '—'}</span>
+                            <span className="agg-appendix__pill">{issue.category}</span>
+                            {issue.severity ? (
+                              <span className="agg-appendix__pill agg-appendix__pill--warn">
+                                {issue.severity}
+                              </span>
+                            ) : null}
+                            {issue.status ? (
+                              <span className="agg-appendix__pill">{issue.status.replace('_', ' ')}</span>
+                            ) : null}
+                          </div>
+                          <p className="agg-appendix__issue-summary">{issue.summary}</p>
+                          {issue.immediateAction ? (
+                            <p className="agg-appendix__issue-action">
+                              Immediate action: {issue.immediateAction}
+                            </p>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {options.photos && (
+                <div className="agg-appendix__block">
+                  <h4 className="agg-appendix__heading">
+                    Photos ({resolvedPhotos.length || appendixPhotos.length}
+                    {summary.photoCount > appendixPhotos.length
+                      ? ` of ${summary.photoCount}`
+                      : ''}
+                    )
+                  </h4>
+                  {appendixPhotos.length === 0 ? (
+                    <p className="report-line">No photos attached in this period.</p>
+                  ) : (
+                    <ul className="agg-appendix__photos" data-testid="agg-appendix-photos">
+                      {resolvedPhotos.map((photo) => (
+                        <li key={photo.id} className="agg-appendix__photo">
+                          {photo.url ? (
+                            <img
+                              src={photo.url}
+                              alt={`${photo.kind} photo — ${photo.workerName} ${photo.checkDate}`}
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="agg-appendix__photo-fallback">
+                              Photo unavailable
+                            </div>
+                          )}
+                          <p>
+                            {photo.kind} · {photo.checkDate} · {photo.workerName}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </section>
       )}
     </article>

@@ -6,10 +6,19 @@ import {
   monthBounds,
 } from './periodStats'
 import { listSubmissionPhotos } from '../services/photosService'
+import { listIssuesForSubmission } from '../services/safetyIssuesService'
 import { listSiteAssignments } from '../services/sitesService'
 import { listAdminSubmissions } from '../services/submissionsService'
 import { parseDailySafetyChecklist } from '../types/safetyChecklist'
-import type { ReportIncludeOptions, SavedReportSummary } from '../types/savedReport'
+import type {
+  ReportAppendixIssue,
+  ReportAppendixPhoto,
+  ReportIncludeOptions,
+  SavedReportSummary,
+} from '../types/savedReport'
+
+/** Cap photos stored on the summary / embedded in PDF to limit memory. */
+export const APPENDIX_PHOTO_CAP = 24
 
 export async function buildPeriodReportSummary(params: {
   siteId: string
@@ -58,11 +67,26 @@ export async function buildPeriodReportSummary(params: {
     assignedFramerCount = assignResult.data.length
   }
 
+  const appendixPhotos: ReportAppendixPhoto[] = []
   let photoCount = 0
   if (options.photos) {
     for (const row of rows) {
       const { data } = await listSubmissionPhotos(row.id)
       photoCount += data.length
+      const c = parseDailySafetyChecklist(row.checklist, row.created_at.slice(0, 10))
+      for (const photo of data) {
+        if (appendixPhotos.length >= APPENDIX_PHOTO_CAP) break
+        appendixPhotos.push({
+          id: photo.id,
+          submissionId: row.id,
+          kind: photo.photo_kind ?? 'site',
+          checkDate: c.checkDate,
+          workerName: row.workerName,
+          storagePath: photo.storage_path,
+          contentType: photo.content_type,
+        })
+      }
+      if (appendixPhotos.length >= APPENDIX_PHOTO_CAP) break
     }
   }
 
@@ -72,6 +96,7 @@ export async function buildPeriodReportSummary(params: {
       summary: {
         ...demo,
         photoCount: options.photos ? demo.photoCount : 0,
+        appendixPhotos: options.photos ? demo.appendixPhotos : [],
         generatedAt: new Date().toISOString(),
       },
       rows,
@@ -87,5 +112,33 @@ export async function buildPeriodReportSummary(params: {
     photoCount,
   })
 
-  return { summary, rows, usedDemoFallback: false }
+  // Prefer DB safety_issue rows (description / immediate action) when present.
+  const dbAppendix: ReportAppendixIssue[] = []
+  for (const row of rows) {
+    const { data, error: issuesError } = await listIssuesForSubmission(row.id)
+    if (issuesError || data.length === 0) continue
+    const c = parseDailySafetyChecklist(row.checklist, row.created_at.slice(0, 10))
+    for (const issue of data) {
+      dbAppendix.push({
+        date: c.checkDate,
+        workerName: row.workerName,
+        category: issue.item_label || issue.checklist_item_key,
+        summary: issue.description,
+        severity: issue.severity,
+        status: row.status,
+        description: issue.description,
+        immediateAction: issue.immediate_action,
+      })
+    }
+  }
+
+  return {
+    summary: {
+      ...summary,
+      appendixPhotos: options.photos ? appendixPhotos : [],
+      appendixIssues: dbAppendix.length > 0 ? dbAppendix : summary.appendixIssues,
+    },
+    rows,
+    usedDemoFallback: false,
+  }
 }

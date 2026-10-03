@@ -113,6 +113,19 @@ function parseSummary(raw: unknown): SavedReportSummary {
       issues: r.issues,
     })),
     notableIssues: notable,
+    appendixIssues: Array.isArray(s.appendixIssues)
+      ? (s.appendixIssues as SavedReportSummary['appendixIssues'])
+      : issueLines.map((line) => ({
+          date: '',
+          workerName: '',
+          category: 'Issue',
+          summary: line,
+          severity: null,
+          status: '',
+        })),
+    appendixPhotos: Array.isArray(s.appendixPhotos)
+      ? (s.appendixPhotos as SavedReportSummary['appendixPhotos'])
+      : [],
   }
 }
 

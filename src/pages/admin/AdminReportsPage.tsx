@@ -185,7 +185,7 @@ export function AdminReportsPage() {
         usedDemoFallback,
       })
 
-      exportPeriodReportPdf({
+      await exportPeriodReportPdf({
         siteName: site.name,
         year,
         month,

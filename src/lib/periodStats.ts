@@ -9,7 +9,11 @@ import {
   parseDailySafetyChecklist,
   type DailySafetyChecklist,
 } from '../types/safetyChecklist'
-import type { SavedReportSummary, TopIssueCount } from '../types/savedReport'
+import type {
+  ReportAppendixIssue,
+  SavedReportSummary,
+  TopIssueCount,
+} from '../types/savedReport'
 
 /** Inclusive weekday count (Mon–Fri) between YYYY-MM-DD bounds. */
 export function countWeekdaysInclusive(fromDate: string, toDate: string): number {
@@ -203,6 +207,20 @@ export function buildAggregateSummary(params: {
   const issueLines = openIssues.slice(0, 12).map(
     (i) => `${i.workerName} · ${i.category}: ${i.summary}`,
   )
+  const appendixIssues: ReportAppendixIssue[] = openIssues.map((i) => {
+    const row = rows.find((r) => r.id === i.submissionId)
+    const c = row
+      ? parseDailySafetyChecklist(row.checklist, row.created_at.slice(0, 10))
+      : null
+    return {
+      date: c?.checkDate ?? i.updatedAt.slice(0, 10),
+      workerName: i.workerName,
+      category: i.category,
+      summary: i.summary,
+      severity: i.severity,
+      status: i.status,
+    }
+  })
 
   const correctiveLines = rows
     .map((row) => {
@@ -236,6 +254,8 @@ export function buildAggregateSummary(params: {
     complianceSeries: complianceOverTime(rows),
     issuesSeries: issuesOverTime(rows),
     notableIssues: issueLines,
+    appendixIssues,
+    appendixPhotos: [],
   }
 }
 
@@ -267,6 +287,8 @@ export function emptyAggregateSummary(): SavedReportSummary {
     complianceSeries: [],
     issuesSeries: [],
     notableIssues: [],
+    appendixIssues: [],
+    appendixPhotos: [],
   }
 }
 
@@ -323,6 +345,41 @@ export function demoAggregateFallback(siteName: string): SavedReportSummary {
       'Hazard (high): Unsecured material near walkway',
       'Housekeeping: No — staging area',
     ],
+    appendixIssues: [
+      {
+        date: '2026-10-06',
+        workerName: 'Demo Framer',
+        category: 'Fall protection',
+        summary: 'Edges protected: No — west elevation',
+        severity: null,
+        status: 'submitted',
+      },
+      {
+        date: '2026-10-13',
+        workerName: 'Demo Framer',
+        category: 'PPE',
+        summary: 'Hard hat: No',
+        severity: null,
+        status: 'submitted',
+      },
+      {
+        date: '2026-10-20',
+        workerName: 'Demo Framer',
+        category: 'Hazard',
+        summary: 'Unsecured material near walkway',
+        severity: 'high',
+        status: 'under_review',
+      },
+      {
+        date: '2026-10-27',
+        workerName: 'Demo Framer',
+        category: 'Tools & work area',
+        summary: 'Housekeeping: No — staging area',
+        severity: null,
+        status: 'submitted',
+      },
+    ],
+    appendixPhotos: [],
     generatedAt: new Date().toISOString(),
   }
 }

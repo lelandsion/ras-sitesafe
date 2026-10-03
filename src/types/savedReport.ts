@@ -1,3 +1,5 @@
+import type { SubmissionPhotoKind } from './database'
+
 export type ReportIncludeOptions = {
   safetySummary: boolean
   submissionCompliance: boolean
@@ -17,6 +19,29 @@ export const DEFAULT_REPORT_INCLUDES: ReportIncludeOptions = {
 export type TopIssueCount = {
   name: 'Fall Protection' | 'PPE' | 'Housekeeping' | 'Tools'
   count: number
+}
+
+/** Full-period safety issue row for the report Appendix. */
+export type ReportAppendixIssue = {
+  date: string
+  workerName: string
+  category: string
+  summary: string
+  severity: string | null
+  status: string
+  description?: string
+  immediateAction?: string
+}
+
+/** Photo reference for the report Appendix (signed URL resolved at view/export). */
+export type ReportAppendixPhoto = {
+  id: string
+  submissionId: string
+  kind: SubmissionPhotoKind
+  checkDate: string
+  workerName: string
+  storagePath: string
+  contentType: string
 }
 
 export type SavedReportSummary = {
@@ -42,6 +67,10 @@ export type SavedReportSummary = {
   complianceSeries: { date: string; compliance: number }[]
   issuesSeries: { date: string; issues: number }[]
   notableIssues: string[]
+  /** Complete issue list for Appendix (not truncated). */
+  appendixIssues: ReportAppendixIssue[]
+  /** Submission photos in period for Appendix (storage paths; resolve at render). */
+  appendixPhotos: ReportAppendixPhoto[]
 }
 
 export interface SavedReport {

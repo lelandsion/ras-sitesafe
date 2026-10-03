@@ -2770,6 +2770,130 @@ a.admin-metrics__item--link:focus-visible {
   }
 }
 
+.agg-appendix__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.agg-appendix__toggle .report-section__title {
+  margin: 0;
+}
+
+.agg-appendix__chevron {
+  font-size: 1.1rem;
+  color: var(--ras-green, #045339);
+  font-weight: 700;
+}
+
+.agg-appendix__body {
+  margin-top: 0.85rem;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.agg-appendix__heading {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ras-charcoal, #2a2829);
+}
+
+.agg-appendix__issues {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.agg-appendix__issue {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--ras-border, #d2d8d4);
+  border-radius: 6px;
+  background: #f7f9f8;
+}
+
+.agg-appendix__issue-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.65rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.78rem;
+  color: #5a5a5a;
+}
+
+.agg-appendix__pill {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: #e6eee9;
+  color: #045339;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.agg-appendix__pill--warn {
+  background: #f8e8e8;
+  color: #9b2c2c;
+}
+
+.agg-appendix__issue-summary {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #2a2829;
+}
+
+.agg-appendix__issue-action {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  color: #5a5a5a;
+}
+
+.agg-appendix__photos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.agg-appendix__photo {
+  margin: 0;
+}
+
+.agg-appendix__photo img,
+.agg-appendix__photo-fallback {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--ras-border, #d2d8d4);
+  background: #eef2ef;
+}
+
+.agg-appendix__photo-fallback {
+  display: grid;
+  place-items: center;
+  font-size: 0.78rem;
+  color: #5a5a5a;
+}
+
+.agg-appendix__photo p {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  color: #5a5a5a;
+}
+
 .report-include-fieldset {
   margin: 0 0 1rem;
   padding: 0.75rem;

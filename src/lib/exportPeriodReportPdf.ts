@@ -1,10 +1,18 @@
 import { jsPDF } from 'jspdf'
-import type { ReportIncludeOptions, SavedReportSummary } from '../types/savedReport'
+import { getPhotoSignedUrl } from '../services/photosService'
+import type {
+  ReportAppendixPhoto,
+  ReportIncludeOptions,
+  SavedReportSummary,
+} from '../types/savedReport'
 import {
   formatReportRangeLabel,
   periodLabel,
   safetyReportHeading,
 } from '../types/savedReport'
+
+/** Max photos embedded in the PDF appendix (memory-safe). */
+const PDF_APPENDIX_PHOTO_CAP = 18
 
 const MARGIN = 14
 const PAGE_W = 210
@@ -356,6 +364,150 @@ function drawFooter(doc: jsPDF): void {
   }
 }
 
+type LoadedAppendixImage = {
+  dataUrl: string
+  format: 'JPEG' | 'PNG' | 'WEBP'
+  label: string
+}
+
+async function loadAppendixImage(
+  photo: ReportAppendixPhoto,
+): Promise<LoadedAppendixImage | null> {
+  const { url } = await getPhotoSignedUrl(photo.storagePath)
+  if (!url) return null
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const blob = await res.blob()
+    // Downscale via canvas when possible to keep PDF memory bounded.
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const raw = String(reader.result)
+        if (typeof document === 'undefined') {
+          resolve(raw)
+          return
+        }
+        const img = new Image()
+        img.onload = () => {
+          const maxEdge = 640
+          const scale = Math.min(1, maxEdge / Math.max(img.width, img.height))
+          const w = Math.max(1, Math.round(img.width * scale))
+          const h = Math.max(1, Math.round(img.height * scale))
+          const canvas = document.createElement('canvas')
+          canvas.width = w
+          canvas.height = h
+          const ctx = canvas.getContext('2d')
+          if (!ctx) {
+            resolve(raw)
+            return
+          }
+          ctx.drawImage(img, 0, 0, w, h)
+          resolve(canvas.toDataURL('image/jpeg', 0.72))
+        }
+        img.onerror = () => resolve(raw)
+        img.src = raw
+      }
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(blob)
+    })
+    return {
+      dataUrl,
+      format: 'JPEG',
+      label: `${photo.kind} · ${photo.checkDate} · ${photo.workerName}`,
+    }
+  } catch {
+    return null
+  }
+}
+
+function drawAppendixIssues(
+  doc: jsPDF,
+  y: number,
+  summary: SavedReportSummary,
+): number {
+  const issues = summary.appendixIssues ?? []
+  y = sectionTitle(doc, y, `Appendix — All safety issues (${issues.length})`)
+  if (issues.length === 0) {
+    return drawNotesBlock(doc, y, 'Issues', 'No safety issues in this period.')
+  }
+
+  for (const issue of issues) {
+    const lines = [
+      `${issue.date || '—'} · ${issue.workerName || '—'} · ${issue.category}`,
+      issue.summary,
+    ]
+    if (issue.severity) lines.push(`Severity: ${issue.severity}`)
+    if (issue.status) lines.push(`Status: ${issue.status.replace('_', ' ')}`)
+    if (issue.immediateAction) {
+      lines.push(`Immediate action: ${issue.immediateAction}`)
+    }
+    const body = lines.join('\n')
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(...CHARCOAL)
+    const wrapped = doc.splitTextToSize(body, CONTENT_W - 4)
+    const blockH = wrapped.length * 4.2 + 4
+    y = ensureSpace(doc, y, blockH + 2)
+    doc.setFillColor(...ROW_ALT)
+    doc.rect(MARGIN, y, CONTENT_W, blockH, 'F')
+    doc.setDrawColor(...LINE)
+    doc.rect(MARGIN, y, CONTENT_W, blockH)
+    doc.text(wrapped, MARGIN + 2, y + 4.5)
+    y += blockH + 2
+  }
+  return y + 4
+}
+
+function drawAppendixPhotoGrid(
+  doc: jsPDF,
+  y: number,
+  images: LoadedAppendixImage[],
+  totalCount: number,
+): number {
+  y = sectionTitle(
+    doc,
+    y,
+    `Appendix — Photos (${images.length}${totalCount > images.length ? ` of ${totalCount}` : ''})`,
+  )
+  if (images.length === 0) {
+    return drawNotesBlock(doc, y, 'Photos', 'No photos could be embedded.')
+  }
+
+  const maxW = 88
+  const maxH = 52
+  const gap = 6
+  let col = 0
+
+  for (let i = 0; i < images.length; i += 1) {
+    const img = images[i]
+    y = ensureSpace(doc, y, maxH + 14)
+    const x = MARGIN + col * (maxW + gap)
+    try {
+      doc.setDrawColor(...LINE)
+      doc.setFillColor(255, 255, 255)
+      doc.roundedRect(x - 1, y - 1, maxW + 2, maxH + 10, 1.5, 1.5, 'FD')
+      doc.addImage(img.dataUrl, img.format, x, y, maxW, maxH, undefined, 'FAST')
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7)
+      doc.setTextColor(...MUTED)
+      const caption = doc.splitTextToSize(img.label, maxW - 2)
+      doc.text(caption[0] ?? img.label, x + 1, y + maxH + 6)
+      doc.setTextColor(...CHARCOAL)
+    } catch {
+      doc.setFontSize(8)
+      doc.text('(Could not embed photo)', x, y + 8)
+    }
+    col += 1
+    if (col >= 2) {
+      col = 0
+      y += maxH + 14
+    }
+  }
+  if (col !== 0) y += maxH + 14
+  return y + 2
+}
+
 export function buildPeriodReportPdfFilename(
   siteName: string,
   year: number,
@@ -369,7 +521,9 @@ export function buildPeriodReportPdfFilename(
   return `ras-sitesafe-monthly-${slug}-${year}-${String(month).padStart(2, '0')}.pdf`
 }
 
-export function exportPeriodReportPdf(params: PeriodReportPdfInput): void {
+export async function exportPeriodReportPdf(
+  params: PeriodReportPdfInput,
+): Promise<void> {
   const {
     siteName,
     year,
@@ -484,8 +638,33 @@ export function exportPeriodReportPdf(params: PeriodReportPdfInput): void {
       doc,
       y,
       'Photos',
-      `${summary.photoCount} photo(s) attached to checks in this period.`,
+      `${summary.photoCount} photo(s) attached to checks in this period. See Appendix for images.`,
     )
+  }
+
+  const wantAppendixIssues =
+    options.safetyIssues && (summary.appendixIssues?.length ?? 0) > 0
+  const wantAppendixPhotos =
+    options.photos && (summary.appendixPhotos?.length ?? 0) > 0
+
+  if (wantAppendixIssues || wantAppendixPhotos) {
+    doc.addPage()
+    y = 16
+    y = sectionTitle(doc, y, 'Appendix')
+  }
+
+  if (wantAppendixIssues) {
+    y = drawAppendixIssues(doc, y, summary)
+  }
+
+  if (wantAppendixPhotos) {
+    const photos = (summary.appendixPhotos ?? []).slice(0, PDF_APPENDIX_PHOTO_CAP)
+    const loaded: LoadedAppendixImage[] = []
+    for (const photo of photos) {
+      const img = await loadAppendixImage(photo)
+      if (img) loaded.push(img)
+    }
+    y = drawAppendixPhotoGrid(doc, y, loaded, summary.photoCount)
   }
 
   drawFooter(doc)

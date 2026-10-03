@@ -94,5 +94,7 @@ describe('periodStats', () => {
     expect(summary.openIssueCount).toBeGreaterThan(0)
     expect(summary.photoCount).toBe(3)
     expect(summary.topIssues.some((t) => t.count > 0)).toBe(true)
+    expect(summary.appendixIssues.length).toBe(summary.openIssueCount)
+    expect(summary.appendixPhotos).toEqual([])
   })
 })

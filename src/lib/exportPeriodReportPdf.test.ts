@@ -10,6 +10,7 @@ const textCalls: string[] = []
 const saveMock = vi.fn()
 const rectCalls: Array<{ fill?: boolean }> = []
 const addImageMock = vi.fn()
+const addPageMock = vi.fn()
 
 vi.mock('jspdf', () => {
   class MockJsPDF {
@@ -30,7 +31,9 @@ vi.mock('jspdf', () => {
     }
     roundedRect() {}
     line() {}
-    addPage() {}
+    addPage() {
+      addPageMock()
+    }
     addImage(...args: unknown[]) {
       addImageMock(...args)
     }
@@ -50,6 +53,10 @@ vi.mock('jspdf', () => {
   }
   return { jsPDF: MockJsPDF }
 })
+
+vi.mock('../services/photosService', () => ({
+  getPhotoSignedUrl: vi.fn(async () => ({ url: null, error: null })),
+}))
 
 const summary: SavedReportSummary = {
   submissionCount: 8,
@@ -84,6 +91,36 @@ const summary: SavedReportSummary = {
     { date: '2026-10-02', issues: 2 },
   ],
   notableIssues: ['Loose sheathing on east elevation'],
+  appendixIssues: [
+    {
+      date: '2026-10-01',
+      workerName: 'Alex',
+      category: 'PPE',
+      summary: 'Hard hat: No',
+      severity: null,
+      status: 'submitted',
+    },
+    {
+      date: '2026-10-02',
+      workerName: 'Sam',
+      category: 'Hazard',
+      summary: 'Loose sheathing on east elevation',
+      severity: 'high',
+      status: 'under_review',
+      immediateAction: 'Cordoned area',
+    },
+  ],
+  appendixPhotos: [
+    {
+      id: 'p1',
+      submissionId: 's1',
+      kind: 'site',
+      checkDate: '2026-10-01',
+      workerName: 'Alex',
+      storagePath: 'u/s1/a.jpg',
+      contentType: 'image/jpeg',
+    },
+  ],
 }
 
 describe('exportPeriodReportPdf', () => {
@@ -92,6 +129,7 @@ describe('exportPeriodReportPdf', () => {
     rectCalls.length = 0
     saveMock.mockReset()
     addImageMock.mockReset()
+    addPageMock.mockReset()
   })
 
   it('builds a branded filename', () => {
@@ -100,8 +138,8 @@ describe('exportPeriodReportPdf', () => {
     )
   })
 
-  it('renders branded header, meta, sections, chart tables, and confidential footer', () => {
-    exportPeriodReportPdf({
+  it('renders branded header, meta, sections, chart tables, appendix, and confidential footer', async () => {
+    await exportPeriodReportPdf({
       siteName: 'Royal Commons',
       year: 2026,
       month: 10,
@@ -141,16 +179,22 @@ describe('exportPeriodReportPdf', () => {
     expect(joined).toMatch(/Replace damaged hard hat/)
     expect(joined).toMatch(/Photos/)
     expect(joined).toMatch(/5 photo\(s\)/)
+    expect(joined).toMatch(/Appendix/)
+    expect(joined).toMatch(/All safety issues/)
+    expect(joined).toMatch(/Hard hat: No/)
+    expect(joined).toMatch(/Immediate action: Cordoned area/)
+    expect(joined).toMatch(/Appendix — Photos/)
     expect(joined).toMatch(/Confidential jobsite record/)
     expect(joined).toMatch(/Page 1 of 1/)
+    expect(addPageMock).toHaveBeenCalled()
     expect(rectCalls.some((r) => r.fill)).toBe(true)
     expect(saveMock).toHaveBeenCalledWith(
       'ras-sitesafe-monthly-royal-commons-2026-10.pdf',
     )
   })
 
-  it('embeds chart images when provided and skips table chart fallbacks', () => {
-    exportPeriodReportPdf({
+  it('embeds chart images when provided and skips table chart fallbacks', async () => {
+    await exportPeriodReportPdf({
       siteName: 'Royal Commons',
       year: 2026,
       month: 10,
@@ -173,8 +217,8 @@ describe('exportPeriodReportPdf', () => {
     expect(addImageMock).toHaveBeenCalled()
   })
 
-  it('omits disabled report sections', () => {
-    exportPeriodReportPdf({
+  it('omits disabled report sections', async () => {
+    await exportPeriodReportPdf({
       siteName: 'Royal Commons',
       year: 2026,
       month: 10,
@@ -195,5 +239,6 @@ describe('exportPeriodReportPdf', () => {
     expect(slim).not.toMatch(/Notable issues/)
     expect(slim).not.toMatch(/Corrective actions/)
     expect(slim).not.toMatch(/Photos/)
+    expect(slim).not.toMatch(/Appendix/)
   })
 })

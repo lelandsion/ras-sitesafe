@@ -6,7 +6,7 @@ import {
   useState,
   type FormEvent,
 } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   ClipboardCheck,
@@ -24,6 +24,14 @@ import { TriStateField } from '../../components/forms/TriStateField'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { useAuth } from '../../hooks/auth-context'
 import { exportSubmissionToPdf } from '../../lib/exportSubmissionPdf'
+import {
+  allowImplicitFormSubmit,
+  persistSuccessMessage,
+  readFormNotice,
+  shouldLeaveFormAfterPersist,
+  statusForPersistIntent,
+  type PersistIntent,
+} from '../../lib/submissionPersist'
 import {
   collectIssueDraftErrors,
   reconcileIssueDrafts,
@@ -80,6 +88,7 @@ export function SafetyFormPage({
 }) {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, profile } = useAuth()
 
   const [sites, setSites] = useState<Site[]>([])
@@ -101,6 +110,8 @@ export function SafetyFormPage({
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  /** Distinguishes draft vs submit so labels never show "Submitting…" on draft save. */
+  const [persistMode, setPersistMode] = useState<PersistIntent | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -219,6 +230,14 @@ export function SafetyFormPage({
     void load()
   }, [load])
 
+  // Survive /new → /:id remount after Save Draft (Route swap clears React state).
+  useEffect(() => {
+    const notice = readFormNotice(location.state)
+    if (!notice) return
+    setInfo(notice)
+    navigate(location.pathname, { replace: true, state: {} })
+  }, [location.pathname, location.state, navigate])
+
   async function ensureSubmissionId(): Promise<string | null> {
     if (!user) {
       setError('Not signed in.')
@@ -299,14 +318,13 @@ export function SafetyFormPage({
    * Persist the Daily Safety Check.
    * `intent` is the only status switch — draft never finalizes / never sets submitted.
    */
-  async function persist(intent: 'draft' | 'submit') {
+  async function persist(intent: PersistIntent) {
     if (!user) {
       setError('Not signed in.')
       return
     }
 
-    const nextStatus: Extract<SubmissionStatus, 'draft' | 'submitted'> =
-      intent === 'submit' ? 'submitted' : 'draft'
+    const nextStatus = statusForPersistIntent(intent)
 
     if (intent === 'submit') {
       const checklistErrors = collectDailySafetyChecklistErrors(checklist, {
@@ -334,6 +352,7 @@ export function SafetyFormPage({
       return
     }
 
+    setPersistMode(intent)
     setSaving(true)
     setError(null)
     setInfo(null)
@@ -361,12 +380,14 @@ export function SafetyFormPage({
       if (createError || !data) {
         setError(createError ?? 'Could not save submission.')
         setSaving(false)
+        setPersistMode(null)
         return
       }
       targetId = data.id
       submissionIdRef.current = data.id
       setSubmissionId(data.id)
-      setStatus(data.status)
+      // Trust intent, not a stale/mis-mapped row — draft save must stay draft.
+      setStatus(nextStatus)
     } else {
       const { data, error: updateError } = await updateSubmission(targetId, {
         ...payload,
@@ -375,9 +396,10 @@ export function SafetyFormPage({
       if (updateError || !data) {
         setError(updateError ?? 'Could not update submission.')
         setSaving(false)
+        setPersistMode(null)
         return
       }
-      setStatus(data.status)
+      setStatus(nextStatus)
     }
 
     // Submit: sync all issues (validated). Draft: upsert only complete rows,
@@ -406,6 +428,7 @@ export function SafetyFormPage({
       if (syncError) {
         setError(syncError)
         setSaving(false)
+        setPersistMode(null)
         return
       }
     }
@@ -423,14 +446,25 @@ export function SafetyFormPage({
     if (!refreshed.error) setSavedIssues(refreshed.data)
 
     setSaving(false)
-    if (intent === 'submit') {
-      setInfo('Safety check submitted for review.')
+    setPersistMode(null)
+
+    const message = persistSuccessMessage(intent, isAdmin)
+    if (shouldLeaveFormAfterPersist(intent)) {
+      setInfo(message)
       navigate('/framer', { replace: true })
       return
     }
 
-    setInfo(isAdmin ? 'Report saved.' : 'Draft saved.')
-    navigate(`${basePath}/${targetId}`, { replace: true })
+    // Draft: stay on the form. Carry notice across /new → /:id remount.
+    const editPath = `${basePath}/${targetId}`
+    if (mode === 'new' || location.pathname !== editPath) {
+      navigate(editPath, {
+        replace: true,
+        state: { formNotice: message },
+      })
+      return
+    }
+    setInfo(message)
   }
 
   async function onSaveDraft(
@@ -482,8 +516,13 @@ export function SafetyFormPage({
     navigate(`${basePath}/${sid}/preview`)
   }
 
-  async function onSubmitSafetyCheck(e: FormEvent) {
+  function onFormSubmit(e: FormEvent) {
     e.preventDefault()
+    // Enter / native submit must never finalize — only the Submit button.
+    if (!allowImplicitFormSubmit()) return
+  }
+
+  async function onSubmitSafetyCheck() {
     await persist('submit')
   }
 
@@ -618,7 +657,7 @@ export function SafetyFormPage({
 
           <form
             className="safety-form"
-            onSubmit={onSubmitSafetyCheck}
+            onSubmit={onFormSubmit}
             noValidate
           >
             <label className="safety-form__field">
@@ -1369,19 +1408,28 @@ export function SafetyFormPage({
                   type="button"
                   className="btn btn--ghost touch-target"
                   disabled={saving || !siteId}
+                  data-testid="save-draft"
                   onClick={(e) => void onSaveDraft(e)}
                 >
                   <Save size={20} strokeWidth={2.5} aria-hidden />
-                  {saving ? 'Saving…' : isAdmin ? 'Save' : 'Save draft'}
+                  {saving && persistMode === 'draft'
+                    ? 'Saving…'
+                    : isAdmin
+                      ? 'Save'
+                      : 'Save draft'}
                 </button>
                 {!isAdmin && (
                   <button
-                    type="submit"
+                    type="button"
                     className="btn btn--primary touch-target"
                     disabled={saving}
+                    data-testid="submit-safety-check"
+                    onClick={() => void onSubmitSafetyCheck()}
                   >
                     <Send size={20} strokeWidth={2.5} aria-hidden />
-                    {saving ? 'Submitting…' : 'Submit Safety Check'}
+                    {saving && persistMode === 'submit'
+                      ? 'Submitting…'
+                      : 'Submit Safety Check'}
                   </button>
                 )}
                 {(submissionId || siteId) && (

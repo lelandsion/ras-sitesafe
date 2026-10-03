@@ -41,9 +41,9 @@ export function SavedReportViewPage() {
     return monthBounds(report.period_year, report.period_month)
   }, [report])
 
-  function onExport() {
+  async function onExport() {
     if (!report) return
-    exportPeriodReportPdf({
+    await exportPeriodReportPdf({
       siteName: report.site_name,
       year: report.period_year,
       month: report.period_month,
@@ -70,7 +70,7 @@ export function SavedReportViewPage() {
               <button
                 type="button"
                 className="btn btn--primary touch-target"
-                onClick={onExport}
+                onClick={() => void onExport()}
               >
                 <FileDown size={20} strokeWidth={2.5} aria-hidden />
                 Export PDF
