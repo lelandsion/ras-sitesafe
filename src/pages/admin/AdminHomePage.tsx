@@ -3,8 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronRight,
   ClipboardList,
-  ClipboardPlus,
   Eye,
   FileDown,
   FileWarning,
@@ -271,13 +271,6 @@ export function AdminHomePage() {
               <AdminNav />
             </div>
             <div className="admin-dash__actions">
-              <Link
-                to="/admin/submissions/new"
-                className="btn btn--primary touch-target"
-              >
-                <ClipboardPlus size={20} strokeWidth={2.5} aria-hidden />
-                New report
-              </Link>
               <button
                 type="button"
                 className="btn btn--ghost touch-target"
@@ -385,7 +378,7 @@ export function AdminHomePage() {
                   <ul className="today-compliance__list">
                     {todaySites.map((site) => (
                       <li key={site.siteId} className="today-compliance__row">
-                        <div>
+                        <div className="today-compliance__copy">
                           <p className="today-compliance__site">
                             {site.siteName}
                           </p>
@@ -402,14 +395,30 @@ export function AdminHomePage() {
                             to={`/admin/sites/${site.siteId}/compliance?filter=missing&date=${localDateISO()}`}
                             className="today-compliance__missing touch-target"
                           >
-                            Missing {site.summary.missing} →
+                            <span className="today-compliance__link-text">
+                              Missing {site.summary.missing}
+                            </span>
+                            <ChevronRight
+                              size={18}
+                              strokeWidth={2.5}
+                              aria-hidden
+                              className="today-compliance__chevron"
+                            />
                           </Link>
                         ) : (
                           <Link
                             to={`/admin/sites/${site.siteId}/compliance?date=${localDateISO()}`}
                             className="today-compliance__ok touch-target"
                           >
-                            View →
+                            <span className="today-compliance__link-text">
+                              View
+                            </span>
+                            <ChevronRight
+                              size={18}
+                              strokeWidth={2.5}
+                              aria-hidden
+                              className="today-compliance__chevron"
+                            />
                           </Link>
                         )}
                       </li>

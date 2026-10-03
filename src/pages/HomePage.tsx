@@ -33,7 +33,8 @@ export function HomePage() {
           </h2>
           <p className="hero__lead">
             Mobile-first site safety forms and compliance for RAS framing crews —
-            built for phones in the field, not desks in the office.
+            optimized for phones in the field and built to work seamlessly across
+            devices.
           </p>
           <div className="hero__actions">
             <Link className="btn btn--primary touch-target" to={signedInDest}>
