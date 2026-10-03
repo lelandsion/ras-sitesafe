@@ -7,7 +7,7 @@ describe('buildStatusCounts', () => {
       { status: 'draft', label: 'Draft', count: 0 },
       { status: 'submitted', label: 'Submitted', count: 0 },
       { status: 'under_review', label: 'Under review', count: 0 },
-      { status: 'approved', label: 'Approved', count: 0 },
+      { status: 'approved', label: 'Reviewed', count: 0 },
       { status: 'rejected', label: 'Rejected', count: 0 },
     ])
   })

@@ -3,6 +3,7 @@ import {
   nextStatusOnCorrectiveActionCreate,
   reviewPatchOnCorrectiveActionCreate,
   sortAdminSubmissions,
+  sortFramerSubmissions,
 } from './submissionAttention'
 import type { SubmissionStatus } from '../types/database'
 
@@ -83,5 +84,35 @@ describe('sortAdminSubmissions', () => {
     const copy = [...input]
     sortAdminSubmissions(input)
     expect(input).toEqual(copy)
+  })
+})
+
+describe('sortFramerSubmissions', () => {
+  function item(
+    id: string,
+    status: SubmissionStatus,
+    updated_at: string,
+  ) {
+    return { id, status, updated_at, created_at: updated_at }
+  }
+
+  it('keeps submitted/under_review above Reviewed (approved), newest within bucket', () => {
+    const sorted = sortFramerSubmissions([
+      item('reviewed-new', 'approved', '2026-10-03T20:00:00.000Z'),
+      item('submitted-old', 'submitted', '2026-10-01T10:00:00.000Z'),
+      item('draft', 'draft', '2026-10-03T18:00:00.000Z'),
+      item('review', 'under_review', '2026-10-02T12:00:00.000Z'),
+      item('submitted-new', 'submitted', '2026-10-03T19:00:00.000Z'),
+      item('rejected', 'rejected', '2026-10-03T21:00:00.000Z'),
+    ])
+
+    expect(sorted.map((s) => s.id)).toEqual([
+      'review',
+      'submitted-new',
+      'submitted-old',
+      'draft',
+      'reviewed-new',
+      'rejected',
+    ])
   })
 })

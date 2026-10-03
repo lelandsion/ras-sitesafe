@@ -7,7 +7,7 @@ const CASES: { status: SubmissionStatus; label: string; classSuffix: string }[] 
   { status: 'draft', label: 'Draft', classSuffix: 'draft' },
   { status: 'submitted', label: 'Submitted', classSuffix: 'submitted' },
   { status: 'under_review', label: 'Under review', classSuffix: 'review' },
-  { status: 'approved', label: 'Approved', classSuffix: 'approved' },
+  { status: 'approved', label: 'Reviewed', classSuffix: 'approved' },
   { status: 'rejected', label: 'Rejected', classSuffix: 'rejected' },
 ]
 

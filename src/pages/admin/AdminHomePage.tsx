@@ -55,9 +55,11 @@ import type {
   SubmissionWithDetails,
 } from '../../types/database'
 import {
+  ADMIN_REVIEW_ACTION_LABELS,
   ADMIN_REVIEW_STATUSES,
   SUBMISSION_STATUS_LABELS,
 } from '../../types/database'
+import { CaAttentionBadge } from '../../components/ui/CaAttentionBadge'
 import { countStructuredIssues } from '../../lib/checklistAnalytics'
 import { parseDailySafetyChecklist } from '../../types/safetyChecklist'
 
@@ -468,7 +470,7 @@ export function AdminHomePage() {
               <div className="admin-panel">
                 <h3 className="admin-panel__title">Worker submissions</h3>
                 <p className="admin-panel__lead">
-                  Review queue: {reviewCounts.queue} · Approved:{' '}
+                  Review queue: {reviewCounts.queue} · Reviewed:{' '}
                   {reviewCounts.approved} · Rejected: {reviewCounts.rejected}
                 </p>
 
@@ -674,7 +676,12 @@ export function AdminHomePage() {
                               <td>{c.checkDate || '—'}</td>
                               <td>{issueCount}</td>
                               <td>
-                                <StatusBadge status={item.status} />
+                                <div className="admin-table__status-stack">
+                                  <StatusBadge status={item.status} />
+                                  <CaAttentionBadge
+                                    attention={item.caAttention}
+                                  />
+                                </div>
                               </td>
                               <td>
                                 <div className="admin-table__actions">
@@ -708,7 +715,7 @@ export function AdminHomePage() {
                                         value={s}
                                         disabled={s === item.status}
                                       >
-                                        {SUBMISSION_STATUS_LABELS[s]}
+                                        {ADMIN_REVIEW_ACTION_LABELS[s]}
                                       </option>
                                     ))}
                                   </select>

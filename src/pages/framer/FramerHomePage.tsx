@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ClipboardPlus,
@@ -7,8 +7,10 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { AppHeader } from '../../components/layout/AppHeader'
+import { CaAttentionBadge } from '../../components/ui/CaAttentionBadge'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { useAuth } from '../../hooks/auth-context'
+import { sortFramerSubmissions } from '../../lib/submissionAttention'
 import { listMySubmissions } from '../../services/submissionsService'
 import type { SubmissionWithSite } from '../../types/database'
 
@@ -47,6 +49,11 @@ export function FramerHomePage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  const sortedItems = useMemo(
+    () => sortFramerSubmissions(items),
+    [items],
+  )
 
   return (
     <div className="app-shell">
@@ -123,9 +130,9 @@ export function FramerHomePage() {
             </div>
           )}
 
-          {!loading && !error && items.length > 0 && (
+          {!loading && !error && sortedItems.length > 0 && (
             <ul className="submission-list" aria-label="Your submissions">
-              {items.map((item) => (
+              {sortedItems.map((item) => (
                 <li key={item.id}>
                   <Link
                     className="submission-card touch-target"
@@ -135,7 +142,10 @@ export function FramerHomePage() {
                       <span className="submission-card__site">
                         {item.sites?.name ?? 'Unknown site'}
                       </span>
-                      <StatusBadge status={item.status} />
+                      <div className="submission-card__badges">
+                        <StatusBadge status={item.status} />
+                        <CaAttentionBadge attention={item.caAttention} />
+                      </div>
                     </div>
                     {item.sites?.address && (
                       <p className="submission-card__addr">{item.sites.address}</p>

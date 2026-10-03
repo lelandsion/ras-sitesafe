@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ADMIN_REVIEW_ACTION_LABELS,
   ADMIN_REVIEW_STATUSES,
   PHOTO_ALLOWED_TYPES,
   PHOTO_BUCKET,
@@ -9,12 +10,12 @@ import {
 } from './database'
 
 describe('submission status helpers', () => {
-  it('labels every status for UI badges', () => {
+  it('labels every status for UI badges (approved displays as Reviewed)', () => {
     expect(SUBMISSION_STATUS_LABELS).toEqual({
       draft: 'Draft',
       submitted: 'Submitted',
       under_review: 'Under review',
-      approved: 'Approved',
+      approved: 'Reviewed',
       rejected: 'Rejected',
     })
   })
@@ -27,6 +28,14 @@ describe('submission status helpers', () => {
     ])
     expect(ADMIN_REVIEW_STATUSES).not.toContain('draft')
     expect(ADMIN_REVIEW_STATUSES).not.toContain('submitted')
+  })
+
+  it('uses Mark reviewed for the approved admin action', () => {
+    expect(ADMIN_REVIEW_ACTION_LABELS).toEqual({
+      under_review: 'Mark under review',
+      approved: 'Mark reviewed',
+      rejected: 'Reject',
+    })
   })
 })
 

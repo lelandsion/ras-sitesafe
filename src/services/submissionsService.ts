@@ -1,4 +1,6 @@
+import { pickActiveCaAttention } from '../lib/caAttention'
 import { supabase } from '../lib/supabase'
+import type { CorrectiveActionStatus } from '../types/correctiveActions'
 import type {
   Profile,
   Site,
@@ -11,6 +13,12 @@ import { humanizeDbError } from './sitesService'
 
 type SiteSnippet = Pick<Site, 'id' | 'name' | 'address'>
 type ProfileSnippet = Pick<Profile, 'id' | 'display_name'>
+
+const SAFETY_ISSUES_CA_EMBED = `
+      safety_issues (
+        corrective_actions ( status )
+      )
+`
 
 /** PostgREST may type an untyped FK embed as an array; normalize to one object. */
 function normalizeSiteEmbed(
@@ -27,21 +35,47 @@ function normalizeProfileEmbed(
   return Array.isArray(profile) ? (profile[0] ?? null) : profile
 }
 
+function collectCaStatuses(
+  safetyIssues: unknown,
+): CorrectiveActionStatus[] {
+  const issues = Array.isArray(safetyIssues)
+    ? safetyIssues
+    : safetyIssues
+      ? [safetyIssues]
+      : []
+  const statuses: CorrectiveActionStatus[] = []
+  for (const issue of issues) {
+    if (!issue || typeof issue !== 'object') continue
+    const cas = (issue as { corrective_actions?: unknown }).corrective_actions
+    const caList = Array.isArray(cas) ? cas : cas ? [cas] : []
+    for (const ca of caList) {
+      if (!ca || typeof ca !== 'object') continue
+      const status = (ca as { status?: CorrectiveActionStatus }).status
+      if (status) statuses.push(status)
+    }
+  }
+  return statuses
+}
+
 function mapSubmissionRow(row: Record<string, unknown>): SubmissionWithSite {
-  const { sites, ...rest } = row
-  const base = rest as Omit<SubmissionWithSite, 'sites'>
+  const { sites, safety_issues: safetyIssues, ...rest } = row
+  const base = rest as Omit<SubmissionWithSite, 'sites' | 'caAttention'>
   return {
     ...base,
     checklist: (base.checklist as Record<string, unknown> | undefined) ?? {},
     sites: normalizeSiteEmbed(sites as SiteSnippet | SiteSnippet[] | null),
+    caAttention: pickActiveCaAttention(collectCaStatuses(safetyIssues)),
   }
 }
 
 function mapAdminSubmissionRow(
   row: Record<string, unknown>,
 ): SubmissionWithDetails {
-  const { sites, submitter, ...rest } = row
-  const base = rest as Omit<SubmissionWithDetails, 'sites' | 'submitter'>
+  const { sites, submitter, safety_issues: safetyIssues, ...rest } = row
+  const base = rest as Omit<
+    SubmissionWithDetails,
+    'sites' | 'submitter' | 'caAttention'
+  >
   return {
     ...base,
     checklist: (base.checklist as Record<string, unknown> | undefined) ?? {},
@@ -49,6 +83,7 @@ function mapAdminSubmissionRow(
     submitter: normalizeProfileEmbed(
       submitter as ProfileSnippet | ProfileSnippet[] | null,
     ),
+    caAttention: pickActiveCaAttention(collectCaStatuses(safetyIssues)),
   }
 }
 
@@ -70,7 +105,8 @@ export async function listMySubmissions(): Promise<{
       reviewed_at,
       created_at,
       updated_at,
-      sites ( id, name, address )
+      sites ( id, name, address ),
+      ${SAFETY_ISSUES_CA_EMBED}
     `,
     )
     .order('updated_at', { ascending: false })
@@ -215,7 +251,8 @@ export async function listAdminSubmissions(): Promise<{
       created_at,
       updated_at,
       sites ( id, name, address ),
-      submitter:profiles!submissions_submitted_by_fkey ( id, display_name )
+      submitter:profiles!submissions_submitted_by_fkey ( id, display_name ),
+      ${SAFETY_ISSUES_CA_EMBED}
     `,
     )
     .neq('status', 'draft')

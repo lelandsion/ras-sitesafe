@@ -92,6 +92,11 @@ export interface SubmissionPhoto {
 /** Submission row with joined site name for list/detail UI. */
 export interface SubmissionWithSite extends Submission {
   sites: Pick<Site, 'id' | 'name' | 'address'> | null
+  /**
+   * Client-only: highest-attention open CA on list rows that embed
+   * safety_issues / corrective_actions (`open` | `in_progress` | `ready_for_review`).
+   */
+  caAttention?: 'open' | 'in_progress' | 'ready_for_review' | null
 }
 
 /** Admin list row: site + submitter profile. */
@@ -112,8 +117,19 @@ export const SUBMISSION_STATUS_LABELS: Record<SubmissionStatus, string> = {
   draft: 'Draft',
   submitted: 'Submitted',
   under_review: 'Under review',
-  approved: 'Approved',
+  /** DB enum stays `approved`; UI copy is Reviewed (admin looked at it). */
+  approved: 'Reviewed',
   rejected: 'Rejected',
+}
+
+/** Admin review dropdown action labels (status enum unchanged). */
+export const ADMIN_REVIEW_ACTION_LABELS: Record<
+  AdminReviewStatus,
+  string
+> = {
+  under_review: 'Mark under review',
+  approved: 'Mark reviewed',
+  rejected: 'Reject',
 }
 
 /** Client mirrors of Storage bucket constraints (see migration). */

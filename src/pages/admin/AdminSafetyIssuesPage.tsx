@@ -26,6 +26,7 @@ import {
   CA_STATUS_LABELS,
   ISSUE_SEVERITY_LABELS,
 } from '../../types/correctiveActions'
+import { sortSafetyIssuesByCaStatus } from '../../lib/caAttention'
 import { issueKindFromChecklistKey } from '../../lib/safetyIssueKeys'
 import { IssueKindBadge } from '../../components/ui/IssueKindBadge'
 
@@ -83,15 +84,8 @@ export function AdminSafetyIssuesPage() {
 
   const visibleItems = useMemo(() => {
     const filtered = items.filter((i) => matchesStatusFilter(i, statusFilter))
-    // Surface ready-for-review first within the current filter.
-    return [...filtered].sort((a, b) => {
-      const aReady = a.corrective_action?.status === 'ready_for_review' ? 0 : 1
-      const bReady = b.corrective_action?.status === 'ready_for_review' ? 0 : 1
-      if (aReady !== bReady) return aReady - bReady
-      return (
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
-    })
+    // open → in_progress → ready_for_review → resolved → no CA; newest within bucket.
+    return sortSafetyIssuesByCaStatus(filtered)
   }, [items, statusFilter])
 
   async function onCreate(input: {

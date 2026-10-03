@@ -163,6 +163,12 @@ describe('AdminSafetyIssuesPage submission links', () => {
       screen.getByRole('button', { name: /Ready for review \(1\)/i }),
     ).toBeInTheDocument()
 
+    // open first, then ready_for_review (not ready-first).
+    const labels = screen
+      .getAllByText(/Guardrail gap|Open harness issue/)
+      .map((el) => el.textContent)
+    expect(labels).toEqual(['Open harness issue', 'Guardrail gap'])
+
     await user.click(
       screen.getByRole('button', { name: /Ready for review \(1\)/i }),
     )
