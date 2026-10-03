@@ -1,4 +1,5 @@
 import { countStructuredIssues } from './checklistAnalytics'
+import { normalizeCalendarDate } from './periodStats'
 import type { SubmissionStatus, SubmissionWithDetails } from '../types/database'
 import { parseDailySafetyChecklist } from '../types/safetyChecklist'
 
@@ -23,11 +24,10 @@ export const EMPTY_SUBMISSION_FILTERS: SubmissionListFilters = {
 }
 
 export function checkDateForSubmission(item: SubmissionWithDetails): string {
-  const checklist = parseDailySafetyChecklist(
-    item.checklist,
-    item.created_at.slice(0, 10),
-  )
-  return checklist.checkDate || item.created_at.slice(0, 10)
+  const fallback = normalizeCalendarDate(item.created_at)
+  const checklist = parseDailySafetyChecklist(item.checklist, fallback)
+  // Same period key as aggregate reports: checklist.checkDate (calendar day).
+  return normalizeCalendarDate(checklist.checkDate || fallback)
 }
 
 /** Drafts are framer-private — strip them from admin queues. */
@@ -49,13 +49,17 @@ export function filterSubmissions(
     if (filters.status !== 'all' && item.status !== filters.status) return false
 
     const checkDate = checkDateForSubmission(item)
-    if (filters.dateFrom && checkDate < filters.dateFrom) return false
-    if (filters.dateTo && checkDate > filters.dateTo) return false
+    if (filters.dateFrom && checkDate < normalizeCalendarDate(filters.dateFrom)) {
+      return false
+    }
+    if (filters.dateTo && checkDate > normalizeCalendarDate(filters.dateTo)) {
+      return false
+    }
 
     if (filters.issues !== 'all') {
       const checklist = parseDailySafetyChecklist(
         item.checklist,
-        item.created_at.slice(0, 10),
+        normalizeCalendarDate(item.created_at),
       )
       const hasIssues = countStructuredIssues(checklist) > 0
       if (filters.issues === 'has_issues' && !hasIssues) return false

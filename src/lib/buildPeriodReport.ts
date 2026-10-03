@@ -1,9 +1,13 @@
-import type { ChecklistSubmissionRow } from './checklistAnalytics'
+import {
+  buildPeriodIssues,
+  type ChecklistSubmissionRow,
+} from './checklistAnalytics'
 import {
   buildAggregateSummary,
-  checkDateInRange,
   demoAggregateFallback,
+  filterSubmissionsForPeriod,
   monthBounds,
+  normalizeCalendarDate,
 } from './periodStats'
 import { listSubmissionPhotos } from '../services/photosService'
 import { listIssuesForSubmission } from '../services/safetyIssuesService'
@@ -19,6 +23,23 @@ import type {
 
 /** Cap photos stored on the summary / embedded in PDF to limit memory. */
 export const APPENDIX_PHOTO_CAP = 24
+
+function checklistAppendixForRow(row: ChecklistSubmissionRow): ReportAppendixIssue[] {
+  return buildPeriodIssues([row]).map((i) => {
+    const c = parseDailySafetyChecklist(
+      row.checklist,
+      normalizeCalendarDate(row.created_at),
+    )
+    return {
+      date: c.checkDate,
+      workerName: i.workerName,
+      category: i.category,
+      summary: i.summary,
+      severity: i.severity,
+      status: i.status,
+    }
+  })
+}
 
 export async function buildPeriodReportSummary(params: {
   siteId: string
@@ -36,8 +57,9 @@ export async function buildPeriodReportSummary(params: {
   usedDemoFallback: boolean
 }> {
   const bounds = monthBounds(params.year, params.month)
-  const fromDate = params.fromDate ?? bounds.fromDate
-  const toDate = params.toDate ?? bounds.toDate
+  // Inclusive calendar-month (or custom) bounds in YYYY-MM-DD app date space.
+  const fromDate = normalizeCalendarDate(params.fromDate ?? bounds.fromDate)
+  const toDate = normalizeCalendarDate(params.toDate ?? bounds.toDate)
   const { siteId, options } = params
 
   const { data: all, error } = await listAdminSubmissions()
@@ -45,21 +67,13 @@ export async function buildPeriodReportSummary(params: {
     throw new Error(error)
   }
 
-  const rows: ChecklistSubmissionRow[] = []
-  for (const item of all) {
-    if (item.site_id !== siteId || item.status === 'draft') continue
-    const c = parseDailySafetyChecklist(item.checklist, item.created_at.slice(0, 10))
-    if (!checkDateInRange(c, fromDate, toDate)) continue
-    rows.push({
-      id: item.id,
-      status: item.status,
-      checklist: item.checklist,
-      created_at: item.created_at,
-      updated_at: item.updated_at,
-      siteName: item.sites?.name ?? params.siteName,
-      workerName: item.submitter?.display_name ?? 'Unknown',
-    })
-  }
+  // Period membership: site match + non-draft + checklist.checkDate in [from, to].
+  const rows = filterSubmissionsForPeriod(all, {
+    siteId,
+    fromDate,
+    toDate,
+    siteNameFallback: params.siteName,
+  })
 
   let assignedFramerCount = 0
   const assignResult = await listSiteAssignments(siteId)
@@ -73,7 +87,10 @@ export async function buildPeriodReportSummary(params: {
     for (const row of rows) {
       const { data } = await listSubmissionPhotos(row.id)
       photoCount += data.length
-      const c = parseDailySafetyChecklist(row.checklist, row.created_at.slice(0, 10))
+      const c = parseDailySafetyChecklist(
+        row.checklist,
+        normalizeCalendarDate(row.created_at),
+      )
       for (const photo of data) {
         if (appendixPhotos.length >= APPENDIX_PHOTO_CAP) break
         appendixPhotos.push({
@@ -112,41 +129,41 @@ export async function buildPeriodReportSummary(params: {
     photoCount,
   })
 
-  // Prefer DB safety_issue rows (description / immediate action) when present.
-  // Include every CA status: open, in_progress, ready_for_review, resolved
-  // (and issues with no CA yet). Period membership uses checklist checkDate
-  // via `rows` — not issue created_at / submission created_at alone.
-  const dbAppendix: ReportAppendixIssue[] = []
+  // Per submission: prefer DB safety_issue rows (all CA statuses + no-CA) when
+  // present; otherwise keep checklist-derived issues. Do not drop checklist-only
+  // rows just because another submission in the period has DB issues.
+  const appendixIssues: ReportAppendixIssue[] = []
   for (const row of rows) {
     const { data, error: issuesError } = await listIssuesForSubmission(row.id)
-    if (issuesError || data.length === 0) continue
-    const c = parseDailySafetyChecklist(row.checklist, row.created_at.slice(0, 10))
-    for (const issue of data) {
-      const caStatus = issue.corrective_action?.status
-      dbAppendix.push({
-        date: c.checkDate,
-        workerName: row.workerName,
-        category: issue.item_label || issue.checklist_item_key,
-        summary: issue.description,
-        severity: issue.severity,
-        status: caStatus ?? row.status,
-        description: issue.description,
-        immediateAction: issue.immediate_action,
-      })
+    const c = parseDailySafetyChecklist(
+      row.checklist,
+      normalizeCalendarDate(row.created_at),
+    )
+    if (!issuesError && data.length > 0) {
+      for (const issue of data) {
+        const caStatus = issue.corrective_action?.status
+        appendixIssues.push({
+          date: c.checkDate,
+          workerName: row.workerName,
+          category: issue.item_label || issue.checklist_item_key,
+          summary: issue.description,
+          severity: issue.severity,
+          status: caStatus ?? row.status,
+          description: issue.description,
+          immediateAction: issue.immediate_action,
+        })
+      }
+    } else {
+      appendixIssues.push(...checklistAppendixForRow(row))
     }
   }
-
-  const appendixIssues =
-    dbAppendix.length > 0 ? dbAppendix : summary.appendixIssues
 
   return {
     summary: {
       ...summary,
       appendixPhotos: options.photos ? appendixPhotos : [],
       appendixIssues,
-      // Keep tile count aligned with appendix when DB rows are authoritative.
-      safetyIssueCount:
-        dbAppendix.length > 0 ? dbAppendix.length : summary.safetyIssueCount,
+      safetyIssueCount: appendixIssues.length,
     },
     rows,
     usedDemoFallback: false,

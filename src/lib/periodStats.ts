@@ -6,15 +6,25 @@ import {
   issuesOverTime,
   type ChecklistSubmissionRow,
 } from './checklistAnalytics'
+import { localDateISO } from './dailyCompliance'
 import {
   parseDailySafetyChecklist,
   type DailySafetyChecklist,
 } from '../types/safetyChecklist'
+import type { SubmissionStatus } from '../types/database'
 import type {
   ReportAppendixIssue,
   SavedReportSummary,
   TopIssueCount,
 } from '../types/savedReport'
+
+/**
+ * Aggregate / period reports key off checklist **checkDate** (YYYY-MM-DD from the
+ * Daily Safety Check form — local/app calendar date), not created_at / updated_at.
+ * When checkDate is missing, fall back to the local calendar day of created_at.
+ * Range checks are inclusive: [fromDate, toDate]. Drafts are excluded; every
+ * other status in range is included (not “newest only”).
+ */
 
 /** Inclusive weekday count (Mon–Fri) between YYYY-MM-DD bounds. */
 export function countWeekdaysInclusive(fromDate: string, toDate: string): number {
@@ -44,13 +54,76 @@ export function parseYmd(ymd: string): Date | null {
   return dt
 }
 
+/**
+ * Normalize to YYYY-MM-DD for inclusive string compares.
+ * Plain calendar dates are kept as-is (never Date-parsed — UTC midnight would
+ * shift the day in western timezones). Timestamps become the local calendar day.
+ */
+export function normalizeCalendarDate(value: string): string {
+  const trimmed = value.trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed
+  if (/^\d{4}-\d{2}-\d{2}[T\s]/.test(trimmed)) {
+    const dt = new Date(trimmed)
+    if (!Number.isNaN(dt.getTime())) return localDateISO(dt)
+    return trimmed.slice(0, 10)
+  }
+  const dt = new Date(trimmed)
+  if (!Number.isNaN(dt.getTime())) return localDateISO(dt)
+  return trimmed.slice(0, 10)
+}
+
 export function checkDateInRange(
   checklist: DailySafetyChecklist,
   fromDate: string,
   toDate: string,
 ): boolean {
-  const day = checklist.checkDate
-  return day >= fromDate && day <= toDate
+  const day = normalizeCalendarDate(checklist.checkDate)
+  const from = normalizeCalendarDate(fromDate)
+  const to = normalizeCalendarDate(toDate)
+  return day >= from && day <= to
+}
+
+export type PeriodSubmissionSource = {
+  id: string
+  site_id: string
+  status: SubmissionStatus
+  checklist: unknown
+  created_at: string
+  updated_at: string
+  sites?: { name?: string } | null
+  submitter?: { display_name?: string } | null
+}
+
+/** Pure period filter used by admin Generate Report (site + non-draft + checkDate). */
+export function filterSubmissionsForPeriod(
+  items: PeriodSubmissionSource[],
+  params: {
+    siteId: string
+    fromDate: string
+    toDate: string
+    siteNameFallback?: string
+  },
+): ChecklistSubmissionRow[] {
+  const from = normalizeCalendarDate(params.fromDate)
+  const to = normalizeCalendarDate(params.toDate)
+  const rows: ChecklistSubmissionRow[] = []
+  for (const item of items) {
+    if (item.site_id !== params.siteId) continue
+    if (item.status === 'draft') continue
+    const fallback = normalizeCalendarDate(item.created_at)
+    const c = parseDailySafetyChecklist(item.checklist, fallback)
+    if (!checkDateInRange(c, from, to)) continue
+    rows.push({
+      id: item.id,
+      status: item.status,
+      checklist: item.checklist ?? {},
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+      siteName: item.sites?.name ?? params.siteNameFallback ?? 'Site',
+      workerName: item.submitter?.display_name ?? 'Unknown',
+    })
+  }
+  return rows
 }
 
 export function monthBounds(year: number, month: number): {

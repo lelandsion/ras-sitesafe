@@ -9,6 +9,8 @@ import { buildPeriodReportSummary } from '../../lib/buildPeriodReport'
 import { exportPeriodReportPdf } from '../../lib/exportPeriodReportPdf'
 import { defaultPeriodRange, monthBounds } from '../../lib/periodStats'
 import { listAdminSites } from '../../services/sitesService'
+import { listAdminSubmissions } from '../../services/submissionsService'
+import { checkDateForSubmission } from '../../lib/filterSubmissions'
 import {
   createSavedReport,
   listSavedReports,
@@ -80,12 +82,37 @@ export function AdminReportsPage() {
     }
     const active = sitesResult.data.filter((s) => s.is_active)
     setSites(active)
+
+    // Prefer a site that actually has non-draft checks in the selected month so
+    // Generate Report does not default to an alphabetically-first quiet site.
+    const subsResult = await listAdminSubmissions()
+    const from = defaults.fromDate
+    const to = defaults.toDate
+    const counts = new Map<string, number>()
+    if (!subsResult.error) {
+      for (const item of subsResult.data) {
+        if (item.status === 'draft') continue
+        const day = checkDateForSubmission(item)
+        if (day < from || day > to) continue
+        counts.set(item.site_id, (counts.get(item.site_id) ?? 0) + 1)
+      }
+    }
     setSiteId((prev) => {
       if (prev && active.some((s) => s.id === prev)) return prev
       const royal = active.find((s) =>
         s.name.toLowerCase().includes('royal commons'),
       )
-      return royal?.id || active[0]?.id || ''
+      if (royal) return royal.id
+      let bestId = ''
+      let bestCount = 0
+      for (const s of active) {
+        const n = counts.get(s.id) ?? 0
+        if (n > bestCount) {
+          bestCount = n
+          bestId = s.id
+        }
+      }
+      return bestId || active[0]?.id || ''
     })
 
     seedDemoSavedReportsIfEmpty(active.map((s) => s.name))
@@ -96,7 +123,7 @@ export function AdminReportsPage() {
       setSaved(listResult.data)
     }
     setLoading(false)
-  }, [])
+  }, [defaults.fromDate, defaults.toDate])
 
   useEffect(() => {
     void load()
