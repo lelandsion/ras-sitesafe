@@ -25,6 +25,8 @@
 /* —— App shell —— */
 .app-shell {
   min-height: 100svh;
+  max-width: 100%;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -35,6 +37,8 @@
   flex-direction: column;
   align-items: stretch;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .app-footer {
@@ -768,6 +772,7 @@
   flex: 1;
   width: 100%;
   max-width: 40rem;
+  min-width: 0;
   margin: 0 auto;
   padding: 1.5rem 1.15rem 2.5rem;
   animation: hero-rise 620ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
@@ -994,12 +999,16 @@
   display: flex;
   flex-direction: column;
   gap: 1.15rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .safety-form__field {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  min-width: 0;
+  max-width: 100%;
   font-family: var(--font-display);
   font-size: 0.85rem;
   font-weight: 600;
@@ -1009,17 +1018,39 @@
 }
 
 .safety-form__control {
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 0.75rem 0.9rem;
   border: 2px solid var(--ras-charcoal);
   border-radius: var(--ras-radius);
-  background: var(--ras-surface-raised);
+  background-color: var(--ras-surface-raised);
   color: var(--ras-ink);
   font-family: var(--font-body);
   font-size: 1.05rem;
   letter-spacing: 0;
   text-transform: none;
   font-weight: 400;
+}
+
+/* Native <select> can expand to longest option text on iOS when focused. */
+select.safety-form__control,
+select.admin-row__select,
+select.field__input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ras-charcoal) 50%),
+    linear-gradient(135deg, var(--ras-charcoal) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.15rem) calc(50% - 0.18rem),
+    calc(100% - 0.75rem) calc(50% - 0.18rem);
+  background-size: 0.4rem 0.4rem, 0.4rem 0.4rem;
+  background-repeat: no-repeat;
+  padding-right: 2.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .safety-form__control:focus-visible {
@@ -1029,7 +1060,7 @@
 
 .safety-form__control:disabled {
   opacity: 0.7;
-  background: #f0f0f0;
+  background-color: #f0f0f0;
 }
 
 .safety-form__textarea {
@@ -1536,12 +1567,14 @@
 }
 
 .admin-row__select {
+  box-sizing: border-box;
   width: 100%;
   max-width: 16rem;
+  min-width: 0;
   padding: 0.65rem 0.85rem;
   border: 2px solid var(--ras-charcoal);
   border-radius: var(--ras-radius);
-  background: var(--ras-surface-raised);
+  background-color: var(--ras-surface-raised);
   color: var(--ras-ink);
   font-family: var(--font-body);
   font-size: 1rem;
@@ -1815,14 +1848,17 @@
 }
 
 .field__input {
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: var(--ras-touch-min);
   padding: 0.65rem 0.75rem;
   border: 2px solid var(--ras-border);
   border-radius: var(--ras-radius);
   font: inherit;
   color: var(--ras-ink);
-  background: var(--ras-surface-raised);
+  background-color: var(--ras-surface-raised);
 }
 
 .field__input:focus-visible {
@@ -2112,7 +2148,8 @@
   letter-spacing: 0;
   font-family: var(--font-body);
   font-weight: 500;
-  font-size: 0.95rem;
+  /* Keep ≥16px on phones to avoid iOS focus zoom + layout jump */
+  font-size: max(1rem, 16px);
 }
 
 .submission-filters__field input[type='date'].safety-form__control {
