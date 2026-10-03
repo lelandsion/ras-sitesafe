@@ -354,7 +354,7 @@ export function AdminDailyCompliancePage() {
                     </p>
                     {selected.submissionId && (
                       <Link
-                        to={`/admin/submissions/${selected.submissionId}/preview`}
+                        to={`/admin/submissions/${selected.submissionId}`}
                         className="btn btn--primary touch-target"
                       >
                         View Submission

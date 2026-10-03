@@ -641,7 +641,8 @@ export function AdminHomePage() {
                           )
                           const issueCount = countStructuredIssues(c)
                           const busy = updatingId === item.id
-                          const detailPath = `/admin/submissions/${item.id}/preview`
+                          // Open form/review first (Framer flow); Preview is on the form.
+                          const detailPath = `/admin/submissions/${item.id}`
                           return (
                             <tr
                               key={item.id}
@@ -716,7 +717,7 @@ export function AdminHomePage() {
                                     className="btn btn--ghost touch-target admin-table__pdf"
                                   >
                                     <Eye size={18} strokeWidth={2.5} aria-hidden />
-                                    Preview
+                                    View
                                   </Link>
                                   <button
                                     type="button"

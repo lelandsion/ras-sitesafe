@@ -274,7 +274,7 @@ export function AdminSafetyIssuesPage() {
                       <div className="safety-issue-card__actions">
                         {issue.submission_id && (
                           <Link
-                            to={`/admin/submissions/${issue.submission_id}/preview`}
+                            to={`/admin/submissions/${issue.submission_id}`}
                             className="btn btn--ghost touch-target"
                           >
                             View submission
