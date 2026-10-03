@@ -2686,9 +2686,14 @@
 }
 
 /* --- Safety issues / corrective actions --- */
+.panel-state--compact {
+  padding: 0.85rem 1rem;
+  width: 100%;
+}
+
 .issue-capture {
   margin: 0.5rem 0 1rem;
-  padding: 0.85rem 1rem;
+  padding: 0.9rem 1rem;
   border: 2px dashed var(--ras-border);
   border-radius: var(--ras-radius);
   background: color-mix(in srgb, var(--ras-sand, #f3efe6) 70%, white);
@@ -2696,13 +2701,30 @@
 
 .issue-capture__title {
   margin: 0 0 0.25rem;
-  font-size: 0.95rem;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .issue-capture__lead {
-  margin: 0 0 0.75rem;
+  margin: 0 0 0.85rem;
   font-size: 0.85rem;
   color: var(--ras-muted);
+}
+
+.issue-capture__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.issue-capture__fields .safety-form__field {
+  margin: 0;
+}
+
+.issue-capture__file-input {
+  max-width: 100%;
 }
 
 .issue-capture__file {
@@ -2710,9 +2732,11 @@
   margin-top: 0.35rem;
   font-size: 0.85rem;
   color: var(--ras-muted);
+  overflow-wrap: anywhere;
 }
 
-.issue-outcome-list {
+.issue-outcome-list,
+.safety-issue-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -2721,43 +2745,135 @@
   gap: 0.85rem;
 }
 
-.issue-outcome {
+.issue-outcome,
+.safety-issue-card {
   padding: 1rem;
   border: 2px solid var(--ras-border);
   border-radius: var(--ras-radius);
-  background: var(--ras-surface);
+  background: var(--ras-surface-raised);
+  overflow: hidden;
 }
 
-.issue-outcome__head {
+.issue-outcome__head,
+.safety-issue-card__top {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.65rem;
 }
 
-.issue-outcome__badges {
+@media (min-width: 640px) {
+  .issue-outcome__head,
+  .safety-issue-card__top {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+
+.issue-outcome__badges,
+.safety-issue-card__badges,
+.ca-modal__badges {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
-  justify-content: flex-end;
+}
+
+@media (min-width: 640px) {
+  .issue-outcome__badges,
+  .safety-issue-card__badges {
+    justify-content: flex-end;
+    flex-shrink: 0;
+    max-width: 45%;
+  }
 }
 
 .issue-outcome__title {
   margin: 0;
   font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+.safety-issue-card__main {
+  min-width: 0;
+  flex: 1;
+}
+
+.safety-issue-card__site {
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.safety-issue-card__item {
+  margin: 0.2rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.safety-issue-card__desc,
+.safety-issue-card__meta {
+  margin: 0.35rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.safety-issue-card__meta {
+  font-size: 0.85rem;
+  color: var(--ras-muted);
+}
+
+.safety-issue-card__ca {
+  margin-top: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 2px dashed var(--ras-border);
+  border-radius: var(--ras-radius);
+  background: color-mix(in srgb, var(--ras-primary) 5%, white);
+}
+
+.safety-issue-card__ca-action,
+.safety-issue-card__ca-meta,
+.safety-issue-card__resolution {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.safety-issue-card__ca-meta {
+  margin-top: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--ras-muted);
+}
+
+.safety-issue-card__resolution {
+  margin-top: 0.45rem;
+}
+
+.safety-issue-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.safety-issue-card__actions .btn {
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: min(100%, 10rem);
 }
 
 .issue-kind-badge {
   display: inline-block;
   padding: 0.2rem 0.5rem;
-  border-radius: 4px;
+  border-radius: var(--ras-radius);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
   border: 1px solid transparent;
+  line-height: 1.2;
 }
 
 .issue-kind-badge--checklist {
@@ -2794,17 +2910,13 @@
   color: var(--ras-ink);
 }
 
-.ca-modal__issue .issue-kind-badge {
-  margin-left: 0.5rem;
-  margin-right: 0.35rem;
-}
-
 .issue-outcome__desc,
 .issue-outcome__immediate,
 .issue-outcome__action,
 .issue-outcome__resolution,
 .issue-outcome__pending {
   margin: 0.45rem 0 0;
+  overflow-wrap: anywhere;
 }
 
 .issue-outcome__ca {
@@ -2812,7 +2924,7 @@
   padding: 0.75rem;
   border: 2px dashed var(--ras-border);
   border-radius: var(--ras-radius);
-  background: color-mix(in srgb, var(--ras-surface) 92%, #ddd);
+  background: color-mix(in srgb, var(--ras-primary) 5%, white);
 }
 
 .issue-outcome__ca-head {
@@ -2841,16 +2953,24 @@
   letter-spacing: 0.06em;
 }
 
+.issue-outcome__pending {
+  color: var(--ras-muted);
+  font-size: 0.9rem;
+}
+
 .severity-badge,
 .ca-status-badge,
 .compliance-pill {
   display: inline-block;
   padding: 0.2rem 0.5rem;
-  border-radius: 4px;
+  border-radius: var(--ras-radius);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  white-space: nowrap;
+  line-height: 1.2;
+  vertical-align: middle;
 }
 
 .severity-badge--low {
@@ -2893,14 +3013,36 @@
 }
 
 .ca-modal__issue {
-  margin-bottom: 1rem;
-  padding: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0.85rem;
   border: 2px solid var(--ras-border);
   border-radius: var(--ras-radius);
+  background: var(--ras-surface);
 }
 
-.ca-modal__issue .severity-badge {
-  margin-left: 0.5rem;
+.ca-modal__issue-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@media (min-width: 480px) {
+  .ca-modal__issue-head {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+
+.ca-modal__issue-title {
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.ca-modal__desc {
+  margin: 0.45rem 0 0;
+  overflow-wrap: anywhere;
 }
 
 .ca-modal__meta {
@@ -2909,10 +3051,40 @@
   color: var(--ras-muted);
 }
 
+.ca-modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ca-modal__form .field,
+.ca-resolve .field {
+  margin-bottom: 0;
+}
+
+.ca-modal__form .modal-panel__actions {
+  padding: 0.75rem 0 0;
+  margin: 0;
+}
+
+.ca-modal__textarea {
+  min-height: 4.5rem;
+  resize: vertical;
+  width: 100%;
+}
+
 .ca-resolve {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 2px solid var(--ras-border);
+}
+
+.ca-resolve .btn {
+  align-self: flex-start;
+  min-width: min(100%, 10rem);
 }
 
 /* --- Daily compliance --- */

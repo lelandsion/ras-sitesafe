@@ -200,140 +200,141 @@ export function AdminSafetyIssuesPage() {
 
           {!loading && !error && items.length > 0 && (
             <div className="admin-panel">
-              <div className="admin-table-wrap">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Site</th>
-                      <th scope="col">Worker</th>
-                      <th scope="col">Type</th>
-                      <th scope="col">Item</th>
-                      <th scope="col">Severity</th>
-                      <th scope="col">CA status</th>
-                      <th scope="col">Priority</th>
-                      <th scope="col">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((issue) => {
-                      const ca = issue.corrective_action
-                      const busy = busyId === ca?.id
-                      const kind = issueKindFromChecklistKey(
-                        issue.checklist_item_key,
-                      )
-                      return (
-                        <tr key={issue.id}>
-                          <td>
-                            <strong>
-                              {issue.submission?.sites?.name ?? '—'}
-                            </strong>
-                            <p className="admin-table__note">
-                              {issue.description}
-                            </p>
-                          </td>
-                          <td>
-                            {issue.submission?.submitter?.display_name ?? '—'}
-                          </td>
-                          <td>
-                            <IssueKindBadge kind={kind} />
-                          </td>
-                          <td>{issue.item_label}</td>
-                          <td>
+              <ul className="safety-issue-list">
+                {items.map((issue) => {
+                  const ca = issue.corrective_action
+                  const busy = busyId === ca?.id
+                  const kind = issueKindFromChecklistKey(
+                    issue.checklist_item_key,
+                  )
+                  const canResolve =
+                    ca &&
+                    (ca.status === 'open' || ca.status === 'in_progress')
+
+                  return (
+                    <li key={issue.id} className="safety-issue-card">
+                      <div className="safety-issue-card__top">
+                        <div className="safety-issue-card__main">
+                          <p className="safety-issue-card__site">
+                            {issue.submission?.sites?.name ?? 'Unknown site'}
+                          </p>
+                          <p className="safety-issue-card__item">
+                            {issue.item_label}
+                          </p>
+                          <p className="safety-issue-card__desc">
+                            {issue.description}
+                          </p>
+                          <p className="safety-issue-card__meta">
+                            {issue.submission?.submitter?.display_name ??
+                              'Worker'}
+                            {issue.immediate_action.trim()
+                              ? ` · Immediate: ${issue.immediate_action}`
+                              : null}
+                          </p>
+                        </div>
+                        <div className="safety-issue-card__badges">
+                          <IssueKindBadge kind={kind} />
+                          <span
+                            className={`severity-badge severity-badge--${issue.severity}`}
+                          >
+                            {ISSUE_SEVERITY_LABELS[issue.severity]}
+                          </span>
+                          {ca ? (
                             <span
-                              className={`severity-badge severity-badge--${issue.severity}`}
+                              className={`ca-status-badge ca-status-badge--${ca.status}`}
                             >
-                              {ISSUE_SEVERITY_LABELS[issue.severity]}
+                              {CA_STATUS_LABELS[ca.status]}
                             </span>
-                          </td>
-                          <td>
-                            {ca ? (
-                              <span
-                                className={`ca-status-badge ca-status-badge--${ca.status}`}
-                              >
-                                {CA_STATUS_LABELS[ca.status]}
-                              </span>
-                            ) : (
-                              <span className="ca-status-badge ca-status-badge--none">
-                                None
-                              </span>
-                            )}
-                          </td>
-                          <td>
-                            {ca ? CA_PRIORITY_LABELS[ca.priority] : '—'}
-                          </td>
-                          <td>
-                            <div className="admin-table__actions">
-                              {issue.submission_id && (
-                                <Link
-                                  to={`/admin/submissions/${issue.submission_id}/preview`}
-                                  className="btn btn--ghost touch-target admin-table__pdf"
-                                >
-                                  View submission
-                                </Link>
-                              )}
-                              {!ca && (
-                                <button
-                                  type="button"
-                                  className="btn btn--primary touch-target admin-table__pdf"
-                                  onClick={() => setCreateIssue(issue)}
-                                >
-                                  Create CA
-                                </button>
-                              )}
-                              {ca && ca.status === 'open' && (
-                                <button
-                                  type="button"
-                                  className="btn btn--primary touch-target admin-table__pdf"
-                                  disabled={busy}
-                                  onClick={() => void onMarkInProgress(ca.id)}
-                                >
-                                  Mark in progress
-                                </button>
-                              )}
-                              {ca &&
-                                (ca.status === 'open' ||
-                                  ca.status === 'in_progress') && (
-                                  <div className="ca-resolve">
-                                    <label className="safety-form__field">
-                                      <span>Resolution notes *</span>
-                                      <textarea
-                                        className="safety-form__control safety-form__textarea"
-                                        rows={2}
-                                        disabled={busy}
-                                        value={resolveNotes[ca.id] ?? ''}
-                                        onChange={(e) =>
-                                          setResolveNotes((prev) => ({
-                                            ...prev,
-                                            [ca.id]: e.target.value,
-                                          }))
-                                        }
-                                        placeholder="How was this closed?"
-                                      />
-                                    </label>
-                                    <button
-                                      type="button"
-                                      className="btn btn--primary touch-target admin-table__pdf"
-                                      disabled={busy}
-                                      onClick={() => void onResolve(ca.id)}
-                                    >
-                                      Resolve
-                                    </button>
-                                  </div>
-                                )}
-                              {ca?.status === 'resolved' &&
-                                ca.resolution_notes && (
-                                  <p className="admin-table__note">
-                                    {ca.resolution_notes}
-                                  </p>
-                                )}
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          ) : (
+                            <span className="ca-status-badge ca-status-badge--none">
+                              No CA
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {ca && (
+                        <div className="safety-issue-card__ca">
+                          <p className="safety-issue-card__ca-action">
+                            <strong>Required:</strong> {ca.required_action}
+                          </p>
+                          <p className="safety-issue-card__ca-meta">
+                            {CA_PRIORITY_LABELS[ca.priority]} priority
+                            {ca.due_date ? ` · Due ${ca.due_date}` : ''}
+                          </p>
+                          {ca.status === 'resolved' && ca.resolution_notes && (
+                            <p className="safety-issue-card__resolution">
+                              <strong>Resolution:</strong>{' '}
+                              {ca.resolution_notes}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="safety-issue-card__actions">
+                        {issue.submission_id && (
+                          <Link
+                            to={`/admin/submissions/${issue.submission_id}/preview`}
+                            className="btn btn--ghost touch-target"
+                          >
+                            View submission
+                          </Link>
+                        )}
+                        {!ca && (
+                          <button
+                            type="button"
+                            className="btn btn--primary touch-target"
+                            onClick={() => setCreateIssue(issue)}
+                          >
+                            Create CA
+                          </button>
+                        )}
+                        {ca && ca.status === 'open' && (
+                          <button
+                            type="button"
+                            className="btn btn--primary touch-target"
+                            disabled={busy}
+                            onClick={() => void onMarkInProgress(ca.id)}
+                          >
+                            Mark in progress
+                          </button>
+                        )}
+                      </div>
+
+                      {canResolve && (
+                        <div className="ca-resolve">
+                          <label className="field">
+                            <span className="field__label">
+                              Resolution notes *
+                            </span>
+                            <textarea
+                              className="field__input ca-modal__textarea"
+                              rows={2}
+                              disabled={busy}
+                              value={resolveNotes[ca.id] ?? ''}
+                              onChange={(e) =>
+                                setResolveNotes((prev) => ({
+                                  ...prev,
+                                  [ca.id]: e.target.value,
+                                }))
+                              }
+                              placeholder="How was this closed?"
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            className="btn btn--primary touch-target"
+                            disabled={busy}
+                            onClick={() => void onResolve(ca.id)}
+                          >
+                            Resolve
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
             </div>
           )}
         </section>

@@ -55,122 +55,126 @@ export function CorrectiveActionModal({
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <div
-        className="modal"
+        className="modal-panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="modal__head">
-          <h2 id={titleId} className="modal__title">
+        <div className="modal-panel__head">
+          <h3 id={titleId} className="modal-panel__title">
             Create corrective action
-          </h2>
+          </h3>
           <button
             type="button"
-            className="btn btn--ghost touch-target"
+            className="modal-panel__close touch-target"
             onClick={onClose}
             disabled={saving}
             aria-label="Close"
           >
-            <X size={20} strokeWidth={2.5} aria-hidden />
+            <X size={22} strokeWidth={2.5} aria-hidden />
           </button>
         </div>
 
-        <div className="ca-modal__issue">
-          <p>
-            <strong>{issue.item_label}</strong>
-            <IssueKindBadge
-              kind={issueKindFromChecklistKey(issue.checklist_item_key)}
-            />
-            <span
-              className={`severity-badge severity-badge--${issue.severity}`}
-            >
-              {ISSUE_SEVERITY_LABELS[issue.severity]}
-            </span>
-          </p>
-          <p>{issue.description}</p>
-          <p className="ca-modal__meta">
-            {issue.submission?.sites?.name ?? 'Site'} ·{' '}
-            {issue.submission?.submitter?.display_name ?? 'Worker'}
-          </p>
-        </div>
+        <div className="modal-form">
+          <div className="ca-modal__issue">
+            <div className="ca-modal__issue-head">
+              <p className="ca-modal__issue-title">{issue.item_label}</p>
+              <div className="ca-modal__badges">
+                <IssueKindBadge
+                  kind={issueKindFromChecklistKey(issue.checklist_item_key)}
+                />
+                <span
+                  className={`severity-badge severity-badge--${issue.severity}`}
+                >
+                  {ISSUE_SEVERITY_LABELS[issue.severity]}
+                </span>
+              </div>
+            </div>
+            <p className="ca-modal__desc">{issue.description}</p>
+            <p className="ca-modal__meta">
+              {issue.submission?.sites?.name ?? 'Site'} ·{' '}
+              {issue.submission?.submitter?.display_name ?? 'Worker'}
+            </p>
+          </div>
 
-        {error && (
-          <p className="form-banner form-banner--error" role="alert">
-            {error}
-          </p>
-        )}
+          {error && (
+            <p className="form-banner form-banner--error" role="alert">
+              {error}
+            </p>
+          )}
 
-        <form
-          className="safety-form"
-          onSubmit={(e) => {
-            e.preventDefault()
-            onCreate({
-              required_action: requiredAction,
-              priority,
-              due_date: dueDate || null,
-            })
-          }}
-        >
-          <label className="safety-form__field">
-            <span>Required action *</span>
-            <textarea
-              className="safety-form__control safety-form__textarea"
-              rows={3}
-              required
-              disabled={saving}
-              value={requiredAction}
-              onChange={(e) => setRequiredAction(e.target.value)}
-              placeholder="What must be done to close this issue?"
-            />
-          </label>
-          <label className="safety-form__field">
-            <span>Priority</span>
-            <select
-              className="safety-form__control touch-target"
-              disabled={saving}
-              value={priority}
-              onChange={(e) =>
-                setPriority(e.target.value as CorrectiveActionPriority)
-              }
-            >
-              {(Object.keys(CA_PRIORITY_LABELS) as CorrectiveActionPriority[]).map(
-                (p) => (
+          <form
+            className="ca-modal__form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              onCreate({
+                required_action: requiredAction,
+                priority,
+                due_date: dueDate || null,
+              })
+            }}
+          >
+            <label className="field">
+              <span className="field__label">Required action *</span>
+              <textarea
+                className="field__input ca-modal__textarea"
+                rows={3}
+                required
+                disabled={saving}
+                value={requiredAction}
+                onChange={(e) => setRequiredAction(e.target.value)}
+                placeholder="What must be done to close this issue?"
+              />
+            </label>
+            <label className="field">
+              <span className="field__label">Priority</span>
+              <select
+                className="field__input touch-target"
+                disabled={saving}
+                value={priority}
+                onChange={(e) =>
+                  setPriority(e.target.value as CorrectiveActionPriority)
+                }
+              >
+                {(
+                  Object.keys(CA_PRIORITY_LABELS) as CorrectiveActionPriority[]
+                ).map((p) => (
                   <option key={p} value={p}>
                     {CA_PRIORITY_LABELS[p]}
                   </option>
-                ),
-              )}
-            </select>
-          </label>
-          <label className="safety-form__field">
-            <span>Due date (optional)</span>
-            <input
-              type="date"
-              className="safety-form__control touch-target"
-              disabled={saving}
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
-          </label>
-          <div className="modal__actions">
-            <button
-              type="button"
-              className="btn btn--ghost touch-target"
-              disabled={saving}
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn btn--primary touch-target"
-              disabled={saving}
-            >
-              {saving ? 'Creating…' : 'Create (Open)'}
-            </button>
-          </div>
-        </form>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span className="field__label">Due date (optional)</span>
+              <input
+                type="date"
+                className="field__input touch-target"
+                disabled={saving}
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </label>
+            <div className="modal-panel__actions modal-panel__actions--end">
+              <button
+                type="button"
+                className="btn btn--ghost touch-target"
+                disabled={saving}
+                onClick={onClose}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn--primary touch-target"
+                disabled={saving}
+              >
+                {saving ? 'Creating…' : 'Create (Open)'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   )

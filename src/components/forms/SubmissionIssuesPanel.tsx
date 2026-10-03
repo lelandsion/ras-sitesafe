@@ -19,7 +19,9 @@ export function SubmissionIssuesPanel({ issues, loading }: Props) {
         <h3 id="safety-issues-ro" className="check-section__title">
           Safety issues
         </h3>
-        <p className="check-section__lead">Loading issues…</p>
+        <div className="panel-state panel-state--compact" role="status">
+          Loading issues…
+        </div>
       </section>
     )
   }
