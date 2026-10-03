@@ -29,14 +29,15 @@ Framers complete a Daily Safety Check (with site/hazard photos) from a phone. Ad
 
 - **Login & roles** — Supabase Auth; route guards for `admin` and `framer` (no public sign-up)
 - **Account** — `/account` profile summary (email, role, assigned sites, activity)
+- **Sites & assignments** — Admin Sites tab: manage jobsites; assign/unassign framers (`site_assignments` with soft-unassign history)
 - **Framer Daily Safety Check** — assigned jobsites, checklist (PPE / fall / tools), hazards & incidents, **Save draft** or **Submit**
-- **Photos** — JPEG/PNG/WebP site photos + hazard photos (`photo_kind`); issue evidence when answering **No**
+- **Photos** — JPEG/PNG/WebP via `photo_kind` (`site` / `hazard` / `issue` / `resolution` / `corrective_action`); issue evidence when answering **No**
 - **Safety issues** — field capture on checklist failures; Admin **Safety Issues** queue with filters (All / Ready for review / Open / In progress / Resolved / No CA)
-- **Corrective actions** — admin create CA → In progress → framer **Ready for review** → admin **Resolve** (resolution notes)
-- **Reviewed status** — admin marks submissions **Reviewed** (DB status `approved`; UI label “Reviewed”)
+- **Corrective actions** — admin create CA → In progress → framer **Ready for review** (`framer_completed_at`) → admin **Resolve** (resolution notes)
+- **Reviewed label** — admin marks submissions **Reviewed** (DB status `approved`; UI label “Reviewed”)
 - **Admin dashboard** — compliance metrics, charts, submission filters (site / worker / dates / issues / status), click-through to form
-- **Daily Compliance** — Sites → Daily Compliance crew status (Assigned / Submitted / Missing / Issues) with date + tabs
-- **Aggregate reports** — monthly site Safety Report: compliance tiles, top issues, charts, notable issues, collapsible **Appendix** (all period issues + photos), PDF export, saved reports
+- **Daily Compliance** — Sites → Daily Compliance crew status (Assigned / Submitted / Missing / Issues) with date + tabs; uses assignment history for accurate Missing
+- **Aggregate reports** — monthly site Safety Report: compliance tiles, top issues, charts, notable issues, collapsible **Appendix** (all period issues + photos, all CA statuses + no-CA), PDF export, `saved_reports`
 - **PDF export** — daily-check PDF and branded monthly period PDF
 
 ---
@@ -98,13 +99,146 @@ Then create the demo Auth users and seed jobsites — [`docs/supabase-seed-notes
 
 ## ERD
 
+Current schema (aligned with [`supabase/migrations/`](supabase/migrations/) through `20261003000801_*`). Mermaid below is the source of truth; the PNG may lag.
+
 ![RAS SiteSafe ERD](docs/ras-sitesafe-erd.png)
 
-- Diagram: [`docs/ras-sitesafe-erd.png`](docs/ras-sitesafe-erd.png)
-- Mermaid / notes: [`docs/ras-sitesafe-erd.md`](docs/ras-sitesafe-erd.md)
-- Schema + RLS + Storage: [`supabase/migrations/`](supabase/migrations/)
+Full Mermaid + notes: [`docs/ras-sitesafe-erd.md`](docs/ras-sitesafe-erd.md)
 
-Core entities: `profiles`, `sites`, `site_assignments` (with assignment history via `unassigned_at`), `submissions` (+ checklist JSON), `submission_photos` (`photo_kind`), `safety_issues`, `corrective_actions` (`framer_completed_at`, status incl. `ready_for_review`), `saved_reports`.
+**Tables:** `profiles`, `sites`, `site_assignments`, `submissions`, `submission_photos`, `safety_issues`, `corrective_actions`, `saved_reports`
+
+**Enums**
+
+| Enum | Values |
+| --- | --- |
+| `user_role` | `admin` \| `framer` |
+| `submission_status` | `draft` → `submitted` → `under_review` → `approved` \| `rejected` (`approved` UI label: **Reviewed**) |
+| `submission_photo_kind` | `site` \| `hazard` \| `issue` \| `resolution` \| `corrective_action` |
+| `issue_severity` | `low` \| `medium` \| `high` |
+| `corrective_action_status` | `open` → `in_progress` → `ready_for_review` → `resolved` |
+| `corrective_action_priority` | `low` \| `medium` \| `high` |
+
+```mermaid
+erDiagram
+  AUTH_USERS ||--|| PROFILES : "extends"
+  PROFILES ||--o{ SITE_ASSIGNMENTS : "framer_id"
+  SITES ||--o{ SITE_ASSIGNMENTS : "site_id"
+  SITES ||--o{ SUBMISSIONS : "site_id"
+  PROFILES ||--o{ SUBMISSIONS : "submitted_by"
+  PROFILES ||--o{ SUBMISSIONS : "reviewed_by"
+  SUBMISSIONS ||--o{ SUBMISSION_PHOTOS : "submission_id"
+  SUBMISSIONS ||--o{ SAFETY_ISSUES : "submission_id"
+  SAFETY_ISSUES ||--o{ CORRECTIVE_ACTIONS : "safety_issue_id"
+  SAFETY_ISSUES ||--o{ SUBMISSION_PHOTOS : "safety_issue_id"
+  CORRECTIVE_ACTIONS ||--o{ SUBMISSION_PHOTOS : "corrective_action_id"
+  PROFILES ||--o{ CORRECTIVE_ACTIONS : "assignee_id"
+  PROFILES ||--o{ SAFETY_ISSUES : "created_by"
+  PROFILES ||--o{ CORRECTIVE_ACTIONS : "created_by"
+  PROFILES ||--o{ CORRECTIVE_ACTIONS : "resolved_by"
+  PROFILES ||--o{ SAVED_REPORTS : "created_by"
+  SITES ||--o{ SAVED_REPORTS : "site_id"
+
+  PROFILES {
+    uuid id PK
+    text display_name
+    user_role role
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  SITES {
+    uuid id PK
+    text name
+    text address
+    boolean is_active
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  SITE_ASSIGNMENTS {
+    uuid id PK
+    uuid site_id FK
+    uuid framer_id FK
+    timestamptz assigned_at
+    timestamptz unassigned_at "null = active"
+  }
+
+  SUBMISSIONS {
+    uuid id PK
+    uuid site_id FK
+    uuid submitted_by FK
+    submission_status status
+    jsonb checklist
+    text notes
+    uuid reviewed_by FK
+    timestamptz reviewed_at
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  SUBMISSION_PHOTOS {
+    uuid id PK
+    uuid submission_id FK
+    text storage_path
+    text content_type
+    int byte_size
+    submission_photo_kind photo_kind
+    uuid safety_issue_id FK
+    uuid corrective_action_id FK
+    timestamptz created_at
+  }
+
+  SAFETY_ISSUES {
+    uuid id PK
+    uuid submission_id FK
+    text checklist_item_key
+    text item_label
+    text description
+    issue_severity severity
+    text immediate_action
+    uuid created_by FK
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  CORRECTIVE_ACTIONS {
+    uuid id PK
+    uuid safety_issue_id FK
+    text required_action
+    corrective_action_priority priority
+    corrective_action_status status
+    uuid assignee_id FK
+    date due_date
+    text resolution_notes
+    uuid resolved_by FK
+    timestamptz resolved_at
+    timestamptz framer_completed_at
+    text framer_completion_notes
+    uuid created_by FK
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  SAVED_REPORTS {
+    uuid id PK
+    uuid created_by FK
+    uuid site_id FK
+    text site_name
+    int period_year
+    int period_month
+    text title
+    jsonb options
+    jsonb summary
+    timestamptz created_at
+  }
+```
+
+**Notes**
+
+- **Assignment history:** soft-unassign via `site_assignments.unassigned_at` so Daily Compliance “Missing” stays accurate for past dates.
+- **Corrective actions:** framer marks `ready_for_review` (sets `framer_completed_at` / optional `framer_completion_notes`); only admin resolves.
+- **Period reports:** aggregate by checklist `checkDate` for the site/month; appendix includes issues in all CA statuses plus issues with no CA yet.
+- **Migrations:** apply [`supabase/migrations/`](supabase/migrations/) in filename order. Seed + smoke: [`docs/supabase-seed-notes.md`](docs/supabase-seed-notes.md), [`docs/test-plan.md`](docs/test-plan.md).
 
 ---
 

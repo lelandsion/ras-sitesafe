@@ -29,6 +29,9 @@ erDiagram
   SAFETY_ISSUES ||--o{ SUBMISSION_PHOTOS : "safety_issue_id"
   CORRECTIVE_ACTIONS ||--o{ SUBMISSION_PHOTOS : "corrective_action_id"
   PROFILES ||--o{ CORRECTIVE_ACTIONS : "assignee_id"
+  PROFILES ||--o{ SAFETY_ISSUES : "created_by"
+  PROFILES ||--o{ CORRECTIVE_ACTIONS : "created_by"
+  PROFILES ||--o{ CORRECTIVE_ACTIONS : "resolved_by"
   PROFILES ||--o{ SAVED_REPORTS : "created_by"
   SITES ||--o{ SAVED_REPORTS : "site_id"
 
@@ -130,5 +133,6 @@ erDiagram
 ## Notes
 
 - **Assignment history:** soft-unassign via `site_assignments.unassigned_at` so Daily Compliance “Missing” stays accurate for past dates.
+- **Corrective actions:** framer marks `ready_for_review` (sets `framer_completed_at` / optional `framer_completion_notes`); only admin resolves.
 - **Period reports:** aggregate by checklist `checkDate` for the site/month; appendix lists safety issues in all CA statuses (`open`, `in_progress`, `ready_for_review`, `resolved`) plus issues with no CA yet.
-- **Migrations:** `supabase/migrations/` (apply in filename order).
+- **Migrations:** `supabase/migrations/` (apply in filename order). Aligned through `20261003000801_*`.
