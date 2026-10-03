@@ -218,5 +218,38 @@ Vitest + React Testing Library (mocked Supabase — **no live network**):
 - Period/report stats + saved-report labels
 - Daily-check PDF structure (sections/meta/footer) + period PDF include toggles
 - `humanizeDbError` user-facing messaging
+- Corrective-action helpers: issue triggers on No/hazard/incident, draft reconcile (no dup keys), validation (`src/lib/safetyIssueKeys.test.ts`)
+- Daily Compliance: assignment-on-date windows, Missing ≠ Not Assigned, filters/summary (`src/lib/dailyCompliance.test.ts`)
 
-**Gap:** no Playwright/Cypress live E2E against Supabase or Vercel in CI. Use this manual plan for end-to-end and deploy confidence.
+**Gap:** no Playwright/Cypress live E2E against Supabase or Vercel in CI. Use this manual plan (esp. §10 / §11 in the Project store test-plan) for end-to-end after Part 7 + Part 8 SQL.
+
+---
+
+## 10. Corrective Actions (Safety Issues)
+
+Requires store SQL **Part 7** (`safety_issues` + `corrective_actions`).
+
+| # | Step | Expected |
+| --- | --- | --- |
+| 10.1 | Framer: new check → answer **No** on Hard hat | Issue capture panel: description*, severity*, immediate action*, optional photo |
+| 10.2 | Fill issue fields → **Save draft** twice | Still **one** safety issue for that item (no duplicates) |
+| 10.3 | Submit the check | Status Submitted; checklist answers unchanged |
+| 10.4 | Admin → **Safety Issues** | Row shows site, worker, item, severity, CA status |
+| 10.5 | **Create CA** → Open → **Mark in progress** → **Resolve** (notes*) | Status Open → In progress → Resolved |
+| 10.6 | Framer opens submitted check | Locked; Safety issues shows CA + resolution |
+| 10.7 | Admin → Worker submissions → click a row | Opens submission preview/detail |
+
+---
+
+## 11. Daily Compliance / Crew Status
+
+Requires store SQL **Part 8** (`site_assignments.unassigned_at`).
+
+| # | Step | Expected |
+| --- | --- | --- |
+| 11.1 | Admin → Sites → **Daily Compliance** | Date defaults to today; summary Assigned / Submitted / Missing / Issues |
+| 11.2 | Tabs All / Submitted / Missing / Issues | Filters worker rows |
+| 11.3 | Submitted worker | Status Submitted + time; View Submission |
+| 11.4 | Assigned, no submission | Not Submitted / NOT SUBMITTED messaging (no reminders yet) |
+| 11.5 | Never assigned / unassigned before date | Not listed as Missing |
+| 11.6 | Dashboard **Today's compliance** | X/Y submitted; Missing N → links to site Daily Compliance `filter=missing` |
