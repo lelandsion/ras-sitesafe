@@ -8,8 +8,8 @@ import type {
 import type { SubmissionStatus } from '../types/database'
 import { humanizeDbError } from './sitesService'
 
-const CA_SELECT =
-  'id, safety_issue_id, required_action, priority, status, assignee_id, due_date, resolution_notes, resolved_by, resolved_at, created_by, created_at, updated_at'
+export const CA_SELECT =
+  'id, safety_issue_id, required_action, priority, status, assignee_id, due_date, resolution_notes, resolved_by, resolved_at, framer_completed_at, framer_completion_notes, created_by, created_at, updated_at'
 
 /**
  * After creating a CA, mark the linked submission under_review when appropriate.
@@ -116,6 +116,37 @@ export async function setCorrectiveActionStatus(input: {
       resolution_notes: null,
       resolved_by: null,
       resolved_at: null,
+      // Admin send-back / reopen clears framer completion signal
+      framer_completed_at: null,
+      framer_completion_notes: null,
+    })
+    .eq('id', input.id)
+    .select(CA_SELECT)
+    .single()
+
+  if (error) {
+    return { data: null, error: humanizeDbError(error.message) }
+  }
+
+  return { data: data as CorrectiveAction, error: null }
+}
+
+/**
+ * Framer marks a CA complete / ready for admin review.
+ * Does not resolve — admin still performs formal Resolve.
+ */
+export async function markCorrectiveActionReadyForReview(input: {
+  id: string
+  completion_notes?: string | null
+}): Promise<{ data: CorrectiveAction | null; error: string | null }> {
+  const notes = input.completion_notes?.trim() || null
+
+  const { data, error } = await supabase
+    .from('corrective_actions')
+    .update({
+      status: 'ready_for_review' satisfies CorrectiveActionStatus,
+      framer_completed_at: new Date().toISOString(),
+      framer_completion_notes: notes,
     })
     .eq('id', input.id)
     .select(CA_SELECT)

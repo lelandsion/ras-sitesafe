@@ -91,6 +91,8 @@ export async function listIssuesForSubmission(
         resolution_notes,
         resolved_by,
         resolved_at,
+        framer_completed_at,
+        framer_completion_notes,
         created_by,
         created_at,
         updated_at
@@ -155,6 +157,8 @@ export async function listAdminSafetyIssues(): Promise<{
         resolution_notes,
         resolved_by,
         resolved_at,
+        framer_completed_at,
+        framer_completion_notes,
         created_by,
         created_at,
         updated_at

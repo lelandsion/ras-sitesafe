@@ -3240,6 +3240,53 @@ a.admin-metrics__item--link:focus-visible {
   font-size: 0.9rem;
 }
 
+.issue-outcome__awaiting,
+.issue-outcome__framer-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: var(--ras-primary-deep);
+}
+
+.issue-outcome__awaiting {
+  font-weight: 600;
+}
+
+.issue-outcome__mark {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--ras-border);
+}
+
+.safety-issue-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.safety-issue-filters__btn {
+  font-size: 0.85rem;
+}
+
+.safety-issue-card--ready {
+  border-color: color-mix(in srgb, #c45c26 55%, var(--ras-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, #c45c26 25%, transparent);
+}
+
+.safety-issue-card__awaiting,
+.safety-issue-card__framer-note {
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+}
+
+.safety-issue-card__awaiting {
+  font-weight: 600;
+  color: #6b2e0e;
+}
+
 .severity-badge,
 .ca-status-badge,
 .compliance-pill {
@@ -3280,6 +3327,12 @@ a.admin-metrics__item--link:focus-visible {
   background: color-mix(in srgb, var(--ras-secondary) 20%, white);
   color: var(--ras-primary-deep);
   border: 1px solid color-mix(in srgb, var(--ras-secondary) 50%, white);
+}
+
+.ca-status-badge--ready_for_review {
+  background: color-mix(in srgb, #c45c26 18%, white);
+  color: #6b2e0e;
+  border: 1px solid color-mix(in srgb, #c45c26 55%, white);
 }
 
 .ca-status-badge--resolved {

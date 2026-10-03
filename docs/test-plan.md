@@ -227,7 +227,7 @@ Vitest + React Testing Library (mocked Supabase — **no live network**):
 
 ## 10. Corrective Actions (Safety Issues)
 
-Requires store SQL **Part 7** (`safety_issues` + `corrective_actions`).
+Requires store SQL **Part 7** (`safety_issues` + `corrective_actions`) and **Part 9** (framer `ready_for_review`).
 
 | # | Step | Expected |
 | --- | --- | --- |
@@ -235,9 +235,12 @@ Requires store SQL **Part 7** (`safety_issues` + `corrective_actions`).
 | 10.2 | Fill issue fields → **Save draft** twice | Still **one** safety issue for that item (no duplicates) |
 | 10.3 | Submit the check | Status Submitted; checklist answers unchanged |
 | 10.4 | Admin → **Safety Issues** | Row shows site, worker, item, severity, CA status |
-| 10.5 | **Create CA** → Open → **Mark in progress** → **Resolve** (notes*) | Status Open → In progress → Resolved |
-| 10.6 | Framer opens submitted check | Locked; Safety issues shows CA + resolution |
-| 10.7 | Admin → Worker submissions → click a row | Opens submission preview/detail |
+| 10.5 | **Create CA** → Open (optional **Mark in progress**) | CA status Open or In progress |
+| 10.6 | Framer opens submitted check → **Mark completed / Ready for review** (optional note) | CA status **Ready for review**; “Awaiting admin review” |
+| 10.7 | Admin → Safety Issues → filter **Ready for review** | Badge + framer note; still **Resolve** (not auto-closed) |
+| 10.8 | Admin enters resolution notes* → **Resolve** | CA status **Resolved**; notes visible |
+| 10.9 | Framer re-opens submitted check | Locked; Safety issues shows CA + resolution |
+| 10.10 | Admin → Worker submissions → click a row | Opens submission form (not preview) |
 
 ---
 

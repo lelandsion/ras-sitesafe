@@ -2,7 +2,11 @@ import type { Profile, Site, Submission } from './database'
 
 export type IssueSeverity = 'low' | 'medium' | 'high'
 
-export type CorrectiveActionStatus = 'open' | 'in_progress' | 'resolved'
+export type CorrectiveActionStatus =
+  | 'open'
+  | 'in_progress'
+  | 'ready_for_review'
+  | 'resolved'
 
 export type CorrectiveActionPriority = 'low' | 'medium' | 'high'
 
@@ -30,6 +34,9 @@ export interface CorrectiveAction {
   resolution_notes: string | null
   resolved_by: string | null
   resolved_at: string | null
+  /** Set when framer marks ready for review — not a formal resolve. */
+  framer_completed_at: string | null
+  framer_completion_notes: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -53,6 +60,7 @@ export const ISSUE_SEVERITY_LABELS: Record<IssueSeverity, string> = {
 export const CA_STATUS_LABELS: Record<CorrectiveActionStatus, string> = {
   open: 'Open',
   in_progress: 'In progress',
+  ready_for_review: 'Ready for review',
   resolved: 'Resolved',
 }
 

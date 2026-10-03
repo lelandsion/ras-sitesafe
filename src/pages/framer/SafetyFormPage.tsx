@@ -1419,6 +1419,17 @@ export function SafetyFormPage({
                 <SubmissionIssuesPanel
                   issues={savedIssues}
                   loading={issuesLoading}
+                  allowMarkComplete={audience === 'framer'}
+                  onChanged={() => {
+                    if (!submissionId) return
+                    void (async () => {
+                      setIssuesLoading(true)
+                      const refreshed =
+                        await listIssuesForSubmission(submissionId)
+                      setIssuesLoading(false)
+                      if (!refreshed.error) setSavedIssues(refreshed.data)
+                    })()
+                  }}
                 />
                 <div className="safety-form__actions">
                   <Link

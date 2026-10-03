@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   FileWarning,
@@ -18,6 +18,7 @@ import {
 import { listAdminSafetyIssues } from '../../services/safetyIssuesService'
 import type {
   CorrectiveActionPriority,
+  CorrectiveActionStatus,
   SafetyIssueWithDetails,
 } from '../../types/correctiveActions'
 import {
@@ -27,6 +28,18 @@ import {
 } from '../../types/correctiveActions'
 import { issueKindFromChecklistKey } from '../../lib/safetyIssueKeys'
 import { IssueKindBadge } from '../../components/ui/IssueKindBadge'
+
+type StatusFilter = 'all' | 'ready_for_review' | 'open' | 'in_progress' | 'resolved' | 'no_ca'
+
+function matchesStatusFilter(
+  issue: SafetyIssueWithDetails,
+  filter: StatusFilter,
+): boolean {
+  if (filter === 'all') return true
+  const ca = issue.corrective_action
+  if (filter === 'no_ca') return !ca
+  return ca?.status === filter
+}
 
 export function AdminSafetyIssuesPage() {
   const { profile, user, signOut } = useAuth()
@@ -41,6 +54,7 @@ export function AdminSafetyIssuesPage() {
   const [createSaving, setCreateSaving] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [resolveNotes, setResolveNotes] = useState<Record<string, string>>({})
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -59,6 +73,26 @@ export function AdminSafetyIssuesPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  const readyCount = useMemo(
+    () =>
+      items.filter((i) => i.corrective_action?.status === 'ready_for_review')
+        .length,
+    [items],
+  )
+
+  const visibleItems = useMemo(() => {
+    const filtered = items.filter((i) => matchesStatusFilter(i, statusFilter))
+    // Surface ready-for-review first within the current filter.
+    return [...filtered].sort((a, b) => {
+      const aReady = a.corrective_action?.status === 'ready_for_review' ? 0 : 1
+      const bReady = b.corrective_action?.status === 'ready_for_review' ? 0 : 1
+      if (aReady !== bReady) return aReady - bReady
+      return (
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+    })
+  }, [items, statusFilter])
 
   async function onCreate(input: {
     required_action: string
@@ -122,6 +156,15 @@ export function AdminSafetyIssuesPage() {
     await load()
   }
 
+  const filterOptions: { id: StatusFilter; label: string }[] = [
+    { id: 'all', label: 'All' },
+    { id: 'ready_for_review', label: `Ready for review${readyCount ? ` (${readyCount})` : ''}` },
+    { id: 'open', label: 'Open' },
+    { id: 'in_progress', label: 'In progress' },
+    { id: 'resolved', label: 'Resolved' },
+    { id: 'no_ca', label: 'No CA' },
+  ]
+
   return (
     <div className="app-shell">
       <AppHeader />
@@ -137,7 +180,8 @@ export function AdminSafetyIssuesPage() {
               <p className="admin-dash__lead">
                 Signed in as{' '}
                 <strong>{profile?.display_name ?? 'Admin'}</strong>. Create a
-                corrective action, move it In Progress, then Resolve with notes.
+                corrective action, wait for framer Ready for review, then
+                Resolve with notes.
               </p>
               <AdminNav />
             </div>
@@ -200,141 +244,201 @@ export function AdminSafetyIssuesPage() {
 
           {!loading && !error && items.length > 0 && (
             <div className="admin-panel">
-              <ul className="safety-issue-list">
-                {items.map((issue) => {
-                  const ca = issue.corrective_action
-                  const busy = busyId === ca?.id
-                  const kind = issueKindFromChecklistKey(
-                    issue.checklist_item_key,
-                  )
-                  const canResolve =
-                    ca &&
-                    (ca.status === 'open' || ca.status === 'in_progress')
+              <div
+                className="safety-issue-filters"
+                role="group"
+                aria-label="Filter by corrective action status"
+              >
+                {filterOptions.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    className={
+                      statusFilter === opt.id
+                        ? 'btn btn--primary touch-target safety-issue-filters__btn'
+                        : 'btn btn--ghost touch-target safety-issue-filters__btn'
+                    }
+                    aria-pressed={statusFilter === opt.id}
+                    onClick={() => setStatusFilter(opt.id)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
 
-                  return (
-                    <li key={issue.id} className="safety-issue-card">
-                      <div className="safety-issue-card__top">
-                        <div className="safety-issue-card__main">
-                          <p className="safety-issue-card__site">
-                            {issue.submission?.sites?.name ?? 'Unknown site'}
-                          </p>
-                          <p className="safety-issue-card__item">
-                            {issue.item_label}
-                          </p>
-                          <p className="safety-issue-card__desc">
-                            {issue.description}
-                          </p>
-                          <p className="safety-issue-card__meta">
-                            {issue.submission?.submitter?.display_name ??
-                              'Worker'}
-                            {issue.immediate_action.trim()
-                              ? ` · Immediate: ${issue.immediate_action}`
-                              : null}
-                          </p>
-                        </div>
-                        <div className="safety-issue-card__badges">
-                          <IssueKindBadge kind={kind} />
-                          <span
-                            className={`severity-badge severity-badge--${issue.severity}`}
-                          >
-                            {ISSUE_SEVERITY_LABELS[issue.severity]}
-                          </span>
-                          {ca ? (
-                            <span
-                              className={`ca-status-badge ca-status-badge--${ca.status}`}
-                            >
-                              {CA_STATUS_LABELS[ca.status]}
-                            </span>
-                          ) : (
-                            <span className="ca-status-badge ca-status-badge--none">
-                              No CA
-                            </span>
-                          )}
-                        </div>
-                      </div>
+              {visibleItems.length === 0 ? (
+                <div className="panel-state panel-state--compact" role="status">
+                  No issues match this filter.
+                </div>
+              ) : (
+                <ul className="safety-issue-list">
+                  {visibleItems.map((issue) => {
+                    const ca = issue.corrective_action
+                    const busy = busyId === ca?.id
+                    const kind = issueKindFromChecklistKey(
+                      issue.checklist_item_key,
+                    )
+                    const canResolve =
+                      ca &&
+                      (ca.status === 'open' ||
+                        ca.status === 'in_progress' ||
+                        ca.status === 'ready_for_review')
+                    const canSendBack =
+                      ca &&
+                      (ca.status === 'open' ||
+                        ca.status === 'ready_for_review')
 
-                      {ca && (
-                        <div className="safety-issue-card__ca">
-                          <p className="safety-issue-card__ca-action">
-                            <strong>Required:</strong> {ca.required_action}
-                          </p>
-                          <p className="safety-issue-card__ca-meta">
-                            {CA_PRIORITY_LABELS[ca.priority]} priority
-                            {ca.due_date ? ` · Due ${ca.due_date}` : ''}
-                          </p>
-                          {ca.status === 'resolved' && ca.resolution_notes && (
-                            <p className="safety-issue-card__resolution">
-                              <strong>Resolution:</strong>{' '}
-                              {ca.resolution_notes}
+                    return (
+                      <li
+                        key={issue.id}
+                        className={
+                          ca?.status === 'ready_for_review'
+                            ? 'safety-issue-card safety-issue-card--ready'
+                            : 'safety-issue-card'
+                        }
+                      >
+                        <div className="safety-issue-card__top">
+                          <div className="safety-issue-card__main">
+                            <p className="safety-issue-card__site">
+                              {issue.submission?.sites?.name ?? 'Unknown site'}
                             </p>
+                            <p className="safety-issue-card__item">
+                              {issue.item_label}
+                            </p>
+                            <p className="safety-issue-card__desc">
+                              {issue.description}
+                            </p>
+                            <p className="safety-issue-card__meta">
+                              {issue.submission?.submitter?.display_name ??
+                                'Worker'}
+                              {issue.immediate_action.trim()
+                                ? ` · Immediate: ${issue.immediate_action}`
+                                : null}
+                            </p>
+                          </div>
+                          <div className="safety-issue-card__badges">
+                            <IssueKindBadge kind={kind} />
+                            <span
+                              className={`severity-badge severity-badge--${issue.severity}`}
+                            >
+                              {ISSUE_SEVERITY_LABELS[issue.severity]}
+                            </span>
+                            {ca ? (
+                              <span
+                                className={`ca-status-badge ca-status-badge--${ca.status as CorrectiveActionStatus}`}
+                                data-testid={
+                                  ca.status === 'ready_for_review'
+                                    ? `ca-ready-badge-${ca.id}`
+                                    : undefined
+                                }
+                              >
+                                {CA_STATUS_LABELS[ca.status]}
+                              </span>
+                            ) : (
+                              <span className="ca-status-badge ca-status-badge--none">
+                                No CA
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {ca && (
+                          <div className="safety-issue-card__ca">
+                            <p className="safety-issue-card__ca-action">
+                              <strong>Required:</strong> {ca.required_action}
+                            </p>
+                            <p className="safety-issue-card__ca-meta">
+                              {CA_PRIORITY_LABELS[ca.priority]} priority
+                              {ca.due_date ? ` · Due ${ca.due_date}` : ''}
+                            </p>
+                            {ca.status === 'ready_for_review' && (
+                              <p className="safety-issue-card__awaiting">
+                                Framer marked complete — awaiting your formal
+                                resolve.
+                              </p>
+                            )}
+                            {ca.framer_completion_notes?.trim() && (
+                              <p className="safety-issue-card__framer-note">
+                                <strong>Framer note:</strong>{' '}
+                                {ca.framer_completion_notes}
+                              </p>
+                            )}
+                            {ca.status === 'resolved' && ca.resolution_notes && (
+                              <p className="safety-issue-card__resolution">
+                                <strong>Resolution:</strong>{' '}
+                                {ca.resolution_notes}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="safety-issue-card__actions">
+                          {issue.submission_id && (
+                            <Link
+                              to={`/admin/submissions/${issue.submission_id}`}
+                              className="btn btn--ghost touch-target"
+                            >
+                              View submission
+                            </Link>
+                          )}
+                          {!ca && (
+                            <button
+                              type="button"
+                              className="btn btn--primary touch-target"
+                              onClick={() => setCreateIssue(issue)}
+                            >
+                              Create CA
+                            </button>
+                          )}
+                          {canSendBack && (
+                            <button
+                              type="button"
+                              className="btn btn--primary touch-target"
+                              disabled={busy}
+                              onClick={() => void onMarkInProgress(ca.id)}
+                            >
+                              {ca.status === 'ready_for_review'
+                                ? 'Send back (in progress)'
+                                : 'Mark in progress'}
+                            </button>
                           )}
                         </div>
-                      )}
 
-                      <div className="safety-issue-card__actions">
-                        {issue.submission_id && (
-                          <Link
-                            to={`/admin/submissions/${issue.submission_id}`}
-                            className="btn btn--ghost touch-target"
-                          >
-                            View submission
-                          </Link>
-                        )}
-                        {!ca && (
-                          <button
-                            type="button"
-                            className="btn btn--primary touch-target"
-                            onClick={() => setCreateIssue(issue)}
-                          >
-                            Create CA
-                          </button>
-                        )}
-                        {ca && ca.status === 'open' && (
-                          <button
-                            type="button"
-                            className="btn btn--primary touch-target"
-                            disabled={busy}
-                            onClick={() => void onMarkInProgress(ca.id)}
-                          >
-                            Mark in progress
-                          </button>
-                        )}
-                      </div>
-
-                      {canResolve && (
-                        <div className="ca-resolve">
-                          <label className="field">
-                            <span className="field__label">
-                              Resolution notes *
-                            </span>
-                            <textarea
-                              className="field__input ca-modal__textarea"
-                              rows={2}
+                        {canResolve && (
+                          <div className="ca-resolve">
+                            <label className="field">
+                              <span className="field__label">
+                                Resolution notes *
+                              </span>
+                              <textarea
+                                className="field__input ca-modal__textarea"
+                                rows={2}
+                                disabled={busy}
+                                value={resolveNotes[ca.id] ?? ''}
+                                onChange={(e) =>
+                                  setResolveNotes((prev) => ({
+                                    ...prev,
+                                    [ca.id]: e.target.value,
+                                  }))
+                                }
+                                placeholder="How was this closed?"
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              className="btn btn--primary touch-target"
                               disabled={busy}
-                              value={resolveNotes[ca.id] ?? ''}
-                              onChange={(e) =>
-                                setResolveNotes((prev) => ({
-                                  ...prev,
-                                  [ca.id]: e.target.value,
-                                }))
-                              }
-                              placeholder="How was this closed?"
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            className="btn btn--primary touch-target"
-                            disabled={busy}
-                            onClick={() => void onResolve(ca.id)}
-                          >
-                            Resolve
-                          </button>
-                        </div>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
+                              onClick={() => void onResolve(ca.id)}
+                            >
+                              Resolve
+                            </button>
+                          </div>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
             </div>
           )}
         </section>

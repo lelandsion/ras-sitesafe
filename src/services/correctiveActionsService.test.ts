@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createCorrectiveAction,
+  markCorrectiveActionReadyForReview,
   markLinkedSubmissionUnderReview,
 } from './correctiveActionsService'
 
@@ -137,6 +138,8 @@ describe('createCorrectiveAction', () => {
       resolution_notes: null,
       resolved_by: null,
       resolved_at: null,
+      framer_completed_at: null,
+      framer_completion_notes: null,
       created_by: 'admin-1',
       created_at: '2026-10-03T12:00:00.000Z',
       updated_at: '2026-10-03T12:00:00.000Z',
@@ -171,6 +174,82 @@ describe('createCorrectiveAction', () => {
     expect(data?.id).toBe('ca-1')
     expect(updateChain.update).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'under_review', reviewed_by: 'admin-1' }),
+    )
+  })
+})
+
+describe('markCorrectiveActionReadyForReview', () => {
+  beforeEach(() => {
+    fromMock.mockReset()
+  })
+
+  it('sets ready_for_review with framer_completed_at and optional note', async () => {
+    const caRow = {
+      id: 'ca-1',
+      safety_issue_id: 'issue-1',
+      required_action: 'Fix guardrail',
+      priority: 'high',
+      status: 'ready_for_review',
+      assignee_id: null,
+      due_date: null,
+      resolution_notes: null,
+      resolved_by: null,
+      resolved_at: null,
+      framer_completed_at: '2026-10-03T14:00:00.000Z',
+      framer_completion_notes: 'Rail reinstalled',
+      created_by: 'admin-1',
+      created_at: '2026-10-03T12:00:00.000Z',
+      updated_at: '2026-10-03T14:00:00.000Z',
+    }
+
+    const updateChain = chain({ data: caRow, error: null })
+    fromMock.mockReturnValueOnce(updateChain)
+
+    const { data, error } = await markCorrectiveActionReadyForReview({
+      id: 'ca-1',
+      completion_notes: '  Rail reinstalled  ',
+    })
+
+    expect(error).toBeNull()
+    expect(data?.status).toBe('ready_for_review')
+    expect(updateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'ready_for_review',
+        framer_completion_notes: 'Rail reinstalled',
+        framer_completed_at: expect.any(String),
+      }),
+    )
+    // Must not set formal resolve fields
+    expect(updateChain.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'resolved',
+      }),
+    )
+  })
+
+  it('stores null note when blank', async () => {
+    const updateChain = chain({
+      data: {
+        id: 'ca-1',
+        status: 'ready_for_review',
+        framer_completion_notes: null,
+        framer_completed_at: '2026-10-03T14:00:00.000Z',
+      },
+      error: null,
+    })
+    fromMock.mockReturnValueOnce(updateChain)
+
+    const { error } = await markCorrectiveActionReadyForReview({
+      id: 'ca-1',
+      completion_notes: '   ',
+    })
+
+    expect(error).toBeNull()
+    expect(updateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'ready_for_review',
+        framer_completion_notes: null,
+      }),
     )
   })
 })
