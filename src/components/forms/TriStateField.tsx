@@ -7,6 +7,7 @@ type Props = {
   value: TriState | null
   disabled?: boolean
   onChange: (value: TriState) => void
+  error?: string | null
 }
 
 const OPTIONS: TriState[] = ['yes', 'no', 'na']
@@ -17,9 +18,14 @@ export function TriStateField({
   value,
   disabled,
   onChange,
+  error,
 }: Props) {
   return (
-    <fieldset className="tri-field" disabled={disabled}>
+    <fieldset
+      className={`tri-field${error ? ' is-invalid' : ''}`}
+      disabled={disabled}
+      aria-invalid={error ? true : undefined}
+    >
       <legend className="tri-field__legend">{label}</legend>
       <div className="tri-field__options" role="radiogroup" aria-label={label}>
         {OPTIONS.map((opt) => {
@@ -40,6 +46,11 @@ export function TriStateField({
           )
         })}
       </div>
+      {error && (
+        <span className="field-error" role="alert">
+          {error}
+        </span>
+      )}
     </fieldset>
   )
 }

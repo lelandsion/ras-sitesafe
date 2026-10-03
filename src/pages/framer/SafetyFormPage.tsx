@@ -25,8 +25,8 @@ import { StatusBadge } from '../../components/ui/StatusBadge'
 import { useAuth } from '../../hooks/auth-context'
 import { exportSubmissionToPdf } from '../../lib/exportSubmissionPdf'
 import {
+  collectIssueDraftErrors,
   reconcileIssueDrafts,
-  validateIssueDrafts,
   type IssueDraft,
 } from '../../lib/safetyIssueKeys'
 import { listAssignedSites } from '../../services/sitesService'
@@ -49,11 +49,12 @@ import type {
   SubmissionStatus,
 } from '../../types/database'
 import {
+  collectDailySafetyChecklistErrors,
   emptyDailySafetyChecklist,
   HAZARD_SEVERITY_LABELS,
   parseDailySafetyChecklist,
   serializeChecklist,
-  validateDailySafetyChecklist,
+  type ChecklistFieldKey,
   type DailySafetyChecklist,
   type HazardSeverity,
   type TriState,
@@ -102,6 +103,8 @@ export function SafetyFormPage({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [submitMessages, setSubmitMessages] = useState<string[]>([])
 
   /** Avoid draft-create race when first photo upload runs before setState lands. */
   const submissionIdRef = useRef<string | null>(submissionId)
@@ -114,9 +117,11 @@ export function SafetyFormPage({
   }
 
   function setTri(
+    field: ChecklistFieldKey,
     apply: (c: DailySafetyChecklist, value: TriState) => DailySafetyChecklist,
     value: TriState,
   ) {
+    clearFieldError(field)
     setChecklist((c) => {
       const next = apply(c, value)
       setIssueDrafts((prev) => reconcileIssueDrafts(next, prev))
@@ -199,6 +204,7 @@ export function SafetyFormPage({
               description: issue.description,
               severity: issue.severity,
               immediate_action: issue.immediate_action,
+              pendingPhoto: null,
             }
           }
           setIssueDrafts(reconcileIssueDrafts(parsed, fromDb))
@@ -272,37 +278,69 @@ export function SafetyFormPage({
     [photos],
   )
 
-  async function persist(
-    nextStatus: Extract<SubmissionStatus, 'draft' | 'submitted'>,
-  ) {
+  function clearFieldError(field: string) {
+    setFieldErrors((prev) => {
+      if (!(field in prev)) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
+
+  function issueFieldErrors(key: string) {
+    return {
+      description: fieldErrors[`issue.${key}.description`],
+      severity: fieldErrors[`issue.${key}.severity`],
+      immediate_action: fieldErrors[`issue.${key}.immediate_action`],
+    }
+  }
+
+  /**
+   * Persist the Daily Safety Check.
+   * `intent` is the only status switch — draft never finalizes / never sets submitted.
+   */
+  async function persist(intent: 'draft' | 'submit') {
     if (!user) {
       setError('Not signed in.')
       return
     }
-    if (!siteId) {
-      setError('Select a jobsite.')
-      return
-    }
 
-    if (nextStatus === 'submitted') {
-      const validationError = validateDailySafetyChecklist(checklist)
-      if (validationError) {
-        setError(validationError)
-        return
-      }
+    const nextStatus: Extract<SubmissionStatus, 'draft' | 'submitted'> =
+      intent === 'submit' ? 'submitted' : 'draft'
+
+    if (intent === 'submit') {
+      const checklistErrors = collectDailySafetyChecklistErrors(checklist, {
+        siteId,
+      })
       const drafts = reconcileIssueDrafts(checklist, issueDrafts)
-      const issueError = validateIssueDrafts(drafts)
-      if (issueError) {
-        setError(issueError)
+      const issueErrors = collectIssueDraftErrors(drafts)
+      const all = [...checklistErrors, ...issueErrors]
+      if (all.length > 0) {
+        const map: Record<string, string> = {}
+        for (const err of all) map[err.field] = err.message
+        setFieldErrors(map)
+        setSubmitMessages(all.map((e) => e.message))
         setIssueDrafts(drafts)
+        setError(null)
+        setInfo(null)
         return
       }
+      setFieldErrors({})
+      setSubmitMessages([])
+    } else if (!siteId) {
+      setFieldErrors({ siteId: 'Select a jobsite.' })
+      setSubmitMessages(['Select a jobsite.'])
+      setError(null)
+      return
     }
 
     setSaving(true)
     setError(null)
     setInfo(null)
+    setFieldErrors({})
+    setSubmitMessages([])
 
+    // Hard-code status from intent so draft save cannot accidentally submit.
     const payload = {
       site_id: siteId,
       notes: notes.trim() || null,
@@ -318,6 +356,7 @@ export function SafetyFormPage({
       const { data, error: createError } = await createSubmission({
         submitted_by: user.id,
         ...payload,
+        status: nextStatus,
       })
       if (createError || !data) {
         setError(createError ?? 'Could not save submission.')
@@ -329,7 +368,10 @@ export function SafetyFormPage({
       setSubmissionId(data.id)
       setStatus(data.status)
     } else {
-      const { data, error: updateError } = await updateSubmission(targetId, payload)
+      const { data, error: updateError } = await updateSubmission(targetId, {
+        ...payload,
+        status: nextStatus,
+      })
       if (updateError || !data) {
         setError(updateError ?? 'Could not update submission.')
         setSaving(false)
@@ -338,23 +380,50 @@ export function SafetyFormPage({
       setStatus(data.status)
     }
 
-    // Upsert issues after submission exists — unique key prevents duplicates.
-    const { error: syncError } = await syncSafetyIssuesForSubmission({
-      submissionId: targetId,
-      createdBy: user.id,
-      drafts: draftsToSync,
-    })
-    if (syncError) {
-      setError(syncError)
-      setSaving(false)
-      return
+    // Submit: sync all issues (validated). Draft: upsert only complete rows,
+    // never prune — incomplete capture stays local until Submit.
+    const draftsForSync =
+      intent === 'submit'
+        ? draftsToSync
+        : Object.fromEntries(
+            Object.entries(draftsToSync).filter(
+              ([, d]) =>
+                Boolean(
+                  d.description.trim() &&
+                    d.severity &&
+                    d.immediate_action.trim(),
+                ),
+            ),
+          )
+
+    if (intent === 'submit' || Object.keys(draftsForSync).length > 0) {
+      const { error: syncError } = await syncSafetyIssuesForSubmission({
+        submissionId: targetId,
+        createdBy: user.id,
+        drafts: draftsForSync,
+        pruneMissing: intent === 'submit',
+      })
+      if (syncError) {
+        setError(syncError)
+        setSaving(false)
+        return
+      }
     }
+
+    // Clear pending local files after successful sync.
+    setIssueDrafts((prev) => {
+      const cleared: Record<string, IssueDraft> = {}
+      for (const [k, d] of Object.entries(prev)) {
+        cleared[k] = { ...d, pendingPhoto: null }
+      }
+      return cleared
+    })
 
     const refreshed = await listIssuesForSubmission(targetId)
     if (!refreshed.error) setSavedIssues(refreshed.data)
 
     setSaving(false)
-    if (nextStatus === 'submitted') {
+    if (intent === 'submit') {
       setInfo('Safety check submitted for review.')
       navigate('/framer', { replace: true })
       return
@@ -362,6 +431,14 @@ export function SafetyFormPage({
 
     setInfo(isAdmin ? 'Report saved.' : 'Draft saved.')
     navigate(`${basePath}/${targetId}`, { replace: true })
+  }
+
+  async function onSaveDraft(
+    e?: { preventDefault: () => void; stopPropagation: () => void },
+  ) {
+    e?.preventDefault()
+    e?.stopPropagation()
+    await persist('draft')
   }
 
   async function onDeleteDraft() {
@@ -405,9 +482,9 @@ export function SafetyFormPage({
     navigate(`${basePath}/${sid}/preview`)
   }
 
-  async function onSubmit(e: FormEvent) {
+  async function onSubmitSafetyCheck(e: FormEvent) {
     e.preventDefault()
-    await persist('submitted')
+    await persist('submit')
   }
 
   async function onExportPdf() {
@@ -486,9 +563,10 @@ export function SafetyFormPage({
                 className="check-header-card__date safety-form__control"
                 value={checklist.checkDate}
                 disabled={!editable || saving}
-                onChange={(e) =>
+                onChange={(e) => {
+                  clearFieldError('checkDate')
                   updateChecklist({ ...checklist, checkDate: e.target.value })
-                }
+                }}
               />
             </p>
             <p>
@@ -519,22 +597,42 @@ export function SafetyFormPage({
               {error}
             </p>
           )}
+          {submitMessages.length > 0 && (
+            <div className="form-banner form-banner--error" role="alert">
+              <strong>
+                Fix {submitMessages.length} item
+                {submitMessages.length === 1 ? '' : 's'} before submitting:
+              </strong>
+              <ul>
+                {submitMessages.map((msg) => (
+                  <li key={msg}>{msg}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           {info && (
             <p className="form-banner form-banner--ok" role="status">
               {info}
             </p>
           )}
 
-          <form className="safety-form" onSubmit={onSubmit} noValidate>
+          <form
+            className="safety-form"
+            onSubmit={onSubmitSafetyCheck}
+            noValidate
+          >
             <label className="safety-form__field">
               <span>Jobsite</span>
               <select
-                className="safety-form__control touch-target"
+                className={`safety-form__control touch-target${fieldErrors.siteId ? ' is-invalid' : ''}`}
                 name="site_id"
-                required
                 disabled={!editable || saving || sites.length === 0}
                 value={siteId}
-                onChange={(e) => setSiteId(e.target.value)}
+                aria-invalid={fieldErrors.siteId ? true : undefined}
+                onChange={(e) => {
+                  setSiteId(e.target.value)
+                  clearFieldError('siteId')
+                }}
               >
                 <option value="">Select site…</option>
                 {sites.map((site) => (
@@ -544,6 +642,11 @@ export function SafetyFormPage({
                   </option>
                 ))}
               </select>
+              {fieldErrors.siteId && (
+                <span className="field-error" role="alert">
+                  {fieldErrors.siteId}
+                </span>
+              )}
             </label>
 
             {user && (
@@ -586,18 +689,24 @@ export function SafetyFormPage({
                 disabled={!editable || saving}
                 onChange={(hardHat) =>
                   setTri(
+                    'ppe.hardHat',
                     (c, v) => ({ ...c, ppe: { ...c.ppe, hardHat: v } }),
                     hardHat,
                   )
                 }
+                error={fieldErrors['ppe.hardHat']}
               />
               {editable && issueDrafts['ppe.hardHat'] && (
                 <IssueCapturePanel
                   draft={issueDrafts['ppe.hardHat']}
                   disabled={saving}
-                  onChange={(d) =>
+                  onChange={(d) => {
                     setIssueDrafts((prev) => ({ ...prev, [d.checklist_item_key]: d }))
-                  }
+                    clearFieldError('issue.ppe.hardHat.description')
+                    clearFieldError('issue.ppe.hardHat.severity')
+                    clearFieldError('issue.ppe.hardHat.immediate_action')
+                  }}
+                  errors={issueFieldErrors('ppe.hardHat')}
                 />
               )}
               <TriStateField
@@ -607,18 +716,24 @@ export function SafetyFormPage({
                 disabled={!editable || saving}
                 onChange={(highVis) =>
                   setTri(
+                    'ppe.highVis',
                     (c, v) => ({ ...c, ppe: { ...c.ppe, highVis: v } }),
                     highVis,
                   )
                 }
+                error={fieldErrors['ppe.highVis']}
               />
               {editable && issueDrafts['ppe.highVis'] && (
                 <IssueCapturePanel
                   draft={issueDrafts['ppe.highVis']}
                   disabled={saving}
-                  onChange={(d) =>
+                  onChange={(d) => {
                     setIssueDrafts((prev) => ({ ...prev, [d.checklist_item_key]: d }))
-                  }
+                    clearFieldError('issue.ppe.highVis.description')
+                    clearFieldError('issue.ppe.highVis.severity')
+                    clearFieldError('issue.ppe.highVis.immediate_action')
+                  }}
+                  errors={issueFieldErrors('ppe.highVis')}
                 />
               )}
               <TriStateField
@@ -628,18 +743,24 @@ export function SafetyFormPage({
                 disabled={!editable || saving}
                 onChange={(footwear) =>
                   setTri(
+                    'ppe.footwear',
                     (c, v) => ({ ...c, ppe: { ...c.ppe, footwear: v } }),
                     footwear,
                   )
                 }
+                error={fieldErrors['ppe.footwear']}
               />
               {editable && issueDrafts['ppe.footwear'] && (
                 <IssueCapturePanel
                   draft={issueDrafts['ppe.footwear']}
                   disabled={saving}
-                  onChange={(d) =>
+                  onChange={(d) => {
                     setIssueDrafts((prev) => ({ ...prev, [d.checklist_item_key]: d }))
-                  }
+                    clearFieldError('issue.ppe.footwear.description')
+                    clearFieldError('issue.ppe.footwear.severity')
+                    clearFieldError('issue.ppe.footwear.immediate_action')
+                  }}
+                  errors={issueFieldErrors('ppe.footwear')}
                 />
               )}
               <TriStateField
@@ -649,6 +770,7 @@ export function SafetyFormPage({
                 disabled={!editable || saving}
                 onChange={(eyeProtection) =>
                   setTri(
+                    'ppe.eyeProtection',
                     (c, v) => ({
                       ...c,
                       ppe: { ...c.ppe, eyeProtection: v },
@@ -656,14 +778,19 @@ export function SafetyFormPage({
                     eyeProtection,
                   )
                 }
+                error={fieldErrors['ppe.eyeProtection']}
               />
               {editable && issueDrafts['ppe.eyeProtection'] && (
                 <IssueCapturePanel
                   draft={issueDrafts['ppe.eyeProtection']}
                   disabled={saving}
-                  onChange={(d) =>
+                  onChange={(d) => {
                     setIssueDrafts((prev) => ({ ...prev, [d.checklist_item_key]: d }))
-                  }
+                    clearFieldError('issue.ppe.eyeProtection.description')
+                    clearFieldError('issue.ppe.eyeProtection.severity')
+                    clearFieldError('issue.ppe.eyeProtection.immediate_action')
+                  }}
+                  errors={issueFieldErrors('ppe.eyeProtection')}
                 />
               )}
             </section>
@@ -679,6 +806,7 @@ export function SafetyFormPage({
                 disabled={!editable || saving}
                 onChange={(edgesProtected) =>
                   setTri(
+                    'fallProtection.edgesProtected',
                     (c, v) => ({
                       ...c,
                       fallProtection: { ...c.fallProtection, edgesProtected: v },
@@ -686,14 +814,19 @@ export function SafetyFormPage({
                     edgesProtected,
                   )
                 }
+                error={fieldErrors['fallProtection.edgesProtected']}
               />
               {editable && issueDrafts['fallProtection.edgesProtected'] && (
                 <IssueCapturePanel
                   draft={issueDrafts['fallProtection.edgesProtected']}
                   disabled={saving}
-                  onChange={(d) =>
+                  onChange={(d) => {
                     setIssueDrafts((prev) => ({ ...prev, [d.checklist_item_key]: d }))
-                  }
+                    clearFieldError('issue.fallProtection.edgesProtected.description')
+                    clearFieldError('issue.fallProtection.edgesProtected.severity')
+                    clearFieldError('issue.fallProtection.edgesProtected.immediate_action')
+                  }}
+                  errors={issueFieldErrors('fallProtection.edgesProtected')}
                 />
               )}
               <TriStateField
@@ -703,6 +836,7 @@ export function SafetyFormPage({
                 disabled={!editable || saving}
                 onChange={(fpInUse) =>
                   setTri(
+                    'fallProtection.fpInUse',
                     (c, v) => ({
                       ...c,
                       fallProtection: { ...c.fallProtection, fpInUse: v },
@@ -710,14 +844,19 @@ export function SafetyFormPage({
                     fpInUse,
                   )
                 }
+                error={fieldErrors['fallProtection.fpInUse']}
               />
               {editable && issueDrafts['fallProtection.fpInUse'] && (
                 <IssueCapturePanel
                   draft={issueDrafts['fallProtection.fpInUse']}
                   disabled={saving}
-                  onChange={(d) =>
+                  onChange={(d) => {
                     setIssueDrafts((prev) => ({ ...prev, [d.checklist_item_key]: d }))
-                  }
+                    clearFieldError('issue.fallProtection.fpInUse.description')
+                    clearFieldError('issue.fallProtection.fpInUse.severity')
+                    clearFieldError('issue.fallProtection.fpInUse.immediate_action')
+                  }}
+                  errors={issueFieldErrors('fallProtection.fpInUse')}
                 />
               )}
               <TriStateField
@@ -727,6 +866,7 @@ export function SafetyFormPage({
                 disabled={!editable || saving}
                 onChange={(ladders) =>
                   setTri(
+                    'fallProtection.ladders',
                     (c, v) => ({
                       ...c,
                       fallProtection: { ...c.fallProtection, ladders: v },
@@ -734,14 +874,19 @@ export function SafetyFormPage({
                     ladders,
                   )
                 }
+                error={fieldErrors['fallProtection.ladders']}
               />
               {editable && issueDrafts['fallProtection.ladders'] && (
                 <IssueCapturePanel
                   draft={issueDrafts['fallProtection.ladders']}
                   disabled={saving}
-                  onChange={(d) =>
+                  onChange={(d) => {
                     setIssueDrafts((prev) => ({ ...prev, [d.checklist_item_key]: d }))
-                  }
+                    clearFieldError('issue.fallProtection.ladders.description')
+                    clearFieldError('issue.fallProtection.ladders.severity')
+                    clearFieldError('issue.fallProtection.ladders.immediate_action')
+                  }}
+                  errors={issueFieldErrors('fallProtection.ladders')}
                 />
               )}
             </section>
@@ -757,6 +902,7 @@ export function SafetyFormPage({
                 disabled={!editable || saving}
                 onChange={(toolsCondition) =>
                   setTri(
+                    'toolsAndWorkArea.toolsCondition',
                     (c, v) => ({
                       ...c,
                       toolsAndWorkArea: {
@@ -767,14 +913,19 @@ export function SafetyFormPage({
                     toolsCondition,
                   )
                 }
+                error={fieldErrors['toolsAndWorkArea.toolsCondition']}
               />
               {editable && issueDrafts['toolsAndWorkArea.toolsCondition'] && (
                 <IssueCapturePanel
                   draft={issueDrafts['toolsAndWorkArea.toolsCondition']}
                   disabled={saving}
-                  onChange={(d) =>
+                  onChange={(d) => {
                     setIssueDrafts((prev) => ({ ...prev, [d.checklist_item_key]: d }))
-                  }
+                    clearFieldError('issue.toolsAndWorkArea.toolsCondition.description')
+                    clearFieldError('issue.toolsAndWorkArea.toolsCondition.severity')
+                    clearFieldError('issue.toolsAndWorkArea.toolsCondition.immediate_action')
+                  }}
+                  errors={issueFieldErrors('toolsAndWorkArea.toolsCondition')}
                 />
               )}
               <TriStateField
@@ -784,6 +935,7 @@ export function SafetyFormPage({
                 disabled={!editable || saving}
                 onChange={(workAreaClear) =>
                   setTri(
+                    'toolsAndWorkArea.workAreaClear',
                     (c, v) => ({
                       ...c,
                       toolsAndWorkArea: {
@@ -794,14 +946,19 @@ export function SafetyFormPage({
                     workAreaClear,
                   )
                 }
+                error={fieldErrors['toolsAndWorkArea.workAreaClear']}
               />
               {editable && issueDrafts['toolsAndWorkArea.workAreaClear'] && (
                 <IssueCapturePanel
                   draft={issueDrafts['toolsAndWorkArea.workAreaClear']}
                   disabled={saving}
-                  onChange={(d) =>
+                  onChange={(d) => {
                     setIssueDrafts((prev) => ({ ...prev, [d.checklist_item_key]: d }))
-                  }
+                    clearFieldError('issue.toolsAndWorkArea.workAreaClear.description')
+                    clearFieldError('issue.toolsAndWorkArea.workAreaClear.severity')
+                    clearFieldError('issue.toolsAndWorkArea.workAreaClear.immediate_action')
+                  }}
+                  errors={issueFieldErrors('toolsAndWorkArea.workAreaClear')}
                 />
               )}
               <TriStateField
@@ -811,6 +968,7 @@ export function SafetyFormPage({
                 disabled={!editable || saving}
                 onChange={(housekeeping) =>
                   setTri(
+                    'toolsAndWorkArea.housekeeping',
                     (c, v) => ({
                       ...c,
                       toolsAndWorkArea: {
@@ -821,14 +979,19 @@ export function SafetyFormPage({
                     housekeeping,
                   )
                 }
+                error={fieldErrors['toolsAndWorkArea.housekeeping']}
               />
               {editable && issueDrafts['toolsAndWorkArea.housekeeping'] && (
                 <IssueCapturePanel
                   draft={issueDrafts['toolsAndWorkArea.housekeeping']}
                   disabled={saving}
-                  onChange={(d) =>
+                  onChange={(d) => {
                     setIssueDrafts((prev) => ({ ...prev, [d.checklist_item_key]: d }))
-                  }
+                    clearFieldError('issue.toolsAndWorkArea.housekeeping.description')
+                    clearFieldError('issue.toolsAndWorkArea.housekeeping.severity')
+                    clearFieldError('issue.toolsAndWorkArea.housekeeping.immediate_action')
+                  }}
+                  errors={issueFieldErrors('toolsAndWorkArea.housekeeping')}
                 />
               )}
             </section>
@@ -837,7 +1000,11 @@ export function SafetyFormPage({
               <h3 id="hazards-heading" className="check-section__title">
                 Hazards
               </h3>
-              <fieldset className="yesno-field" disabled={!editable || saving}>
+              <fieldset
+                className={`yesno-field${fieldErrors['hazards.present'] ? ' is-invalid' : ''}`}
+                disabled={!editable || saving}
+                aria-invalid={fieldErrors['hazards.present'] ? true : undefined}
+              >
                 <legend className="yesno-field__legend">
                   Hazard observed on site?
                 </legend>
@@ -853,7 +1020,10 @@ export function SafetyFormPage({
                         type="radio"
                         name="hazards-present"
                         checked={checklist.hazards.present === val}
-                        onChange={() =>
+                        onChange={() => {
+                          clearFieldError('hazards.present')
+                          clearFieldError('hazards.description')
+                          clearFieldError('hazards.severity')
                           setChecklist((c) => {
                             const next = {
                               ...c,
@@ -869,12 +1039,17 @@ export function SafetyFormPage({
                             )
                             return next
                           })
-                        }
+                        }}
                       />
                       <span>{label}</span>
                     </label>
                   ))}
                 </div>
+                {fieldErrors['hazards.present'] && (
+                  <span className="field-error" role="alert">
+                    {fieldErrors['hazards.present']}
+                  </span>
+                )}
               </fieldset>
 
               {checklist.hazards.present && (
@@ -882,13 +1057,16 @@ export function SafetyFormPage({
                   <label className="safety-form__field">
                     <span>Hazard description *</span>
                     <textarea
-                      className="safety-form__control safety-form__textarea"
+                      className={`safety-form__control safety-form__textarea${fieldErrors['hazards.description'] ? ' is-invalid' : ''}`}
                       rows={3}
-                      required
                       disabled={!editable || saving}
+                      aria-invalid={
+                        fieldErrors['hazards.description'] ? true : undefined
+                      }
                       value={checklist.hazards.description}
                       onChange={(e) => {
                         const description = e.target.value
+                        clearFieldError('hazards.description')
                         setChecklist((c) => {
                           const next = {
                             ...c,
@@ -910,16 +1088,24 @@ export function SafetyFormPage({
                         })
                       }}
                     />
+                    {fieldErrors['hazards.description'] && (
+                      <span className="field-error" role="alert">
+                        {fieldErrors['hazards.description']}
+                      </span>
+                    )}
                   </label>
                   <label className="safety-form__field">
                     <span>Severity *</span>
                     <select
-                      className="safety-form__control touch-target"
-                      required
+                      className={`safety-form__control touch-target${fieldErrors['hazards.severity'] ? ' is-invalid' : ''}`}
                       disabled={!editable || saving}
+                      aria-invalid={
+                        fieldErrors['hazards.severity'] ? true : undefined
+                      }
                       value={checklist.hazards.severity ?? ''}
                       onChange={(e) => {
                         const severity = e.target.value as HazardSeverity
+                        clearFieldError('hazards.severity')
                         setChecklist((c) => {
                           const next = {
                             ...c,
@@ -941,6 +1127,11 @@ export function SafetyFormPage({
                         ),
                       )}
                     </select>
+                    {fieldErrors['hazards.severity'] && (
+                      <span className="field-error" role="alert">
+                        {fieldErrors['hazards.severity']}
+                      </span>
+                    )}
                   </label>
                   {user && (
                     <PhotoUpload
@@ -962,12 +1153,17 @@ export function SafetyFormPage({
                       <label className="safety-form__field">
                         <span>Immediate action *</span>
                         <textarea
-                          className="safety-form__control safety-form__textarea"
+                          className={`safety-form__control safety-form__textarea${fieldErrors['issue.hazards.immediate_action'] ? ' is-invalid' : ''}`}
                           rows={2}
-                          required
                           disabled={saving}
+                          aria-invalid={
+                            fieldErrors['issue.hazards.immediate_action']
+                              ? true
+                              : undefined
+                          }
                           value={issueDrafts.hazards.immediate_action}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            clearFieldError('issue.hazards.immediate_action')
                             setIssueDrafts((prev) => ({
                               ...prev,
                               hazards: {
@@ -983,9 +1179,14 @@ export function SafetyFormPage({
                                     : checklist.hazards.severity),
                               },
                             }))
-                          }
+                          }}
                           placeholder="What did the crew do right away?"
                         />
+                        {fieldErrors['issue.hazards.immediate_action'] && (
+                          <span className="field-error" role="alert">
+                            {fieldErrors['issue.hazards.immediate_action']}
+                          </span>
+                        )}
                       </label>
                     </>
                   )}
@@ -997,7 +1198,13 @@ export function SafetyFormPage({
               <h3 id="incident-heading" className="check-section__title">
                 Incident / near miss
               </h3>
-              <fieldset className="yesno-field" disabled={!editable || saving}>
+              <fieldset
+                className={`yesno-field${fieldErrors['incidentOrNearMiss.occurred'] ? ' is-invalid' : ''}`}
+                disabled={!editable || saving}
+                aria-invalid={
+                  fieldErrors['incidentOrNearMiss.occurred'] ? true : undefined
+                }
+              >
                 <legend className="yesno-field__legend">
                   Incident or near miss today?
                 </legend>
@@ -1013,7 +1220,9 @@ export function SafetyFormPage({
                         type="radio"
                         name="incident-occurred"
                         checked={checklist.incidentOrNearMiss.occurred === val}
-                        onChange={() =>
+                        onChange={() => {
+                          clearFieldError('incidentOrNearMiss.occurred')
+                          clearFieldError('incidentOrNearMiss.detail')
                           setChecklist((c) => {
                             const next = {
                               ...c,
@@ -1027,25 +1236,35 @@ export function SafetyFormPage({
                             )
                             return next
                           })
-                        }
+                        }}
                       />
                       <span>{label}</span>
                     </label>
                   ))}
                 </div>
+                {fieldErrors['incidentOrNearMiss.occurred'] && (
+                  <span className="field-error" role="alert">
+                    {fieldErrors['incidentOrNearMiss.occurred']}
+                  </span>
+                )}
               </fieldset>
               {checklist.incidentOrNearMiss.occurred && (
                 <>
                   <label className="safety-form__field">
                     <span>Details *</span>
                     <textarea
-                      className="safety-form__control safety-form__textarea"
+                      className={`safety-form__control safety-form__textarea${fieldErrors['incidentOrNearMiss.detail'] ? ' is-invalid' : ''}`}
                       rows={3}
-                      required
                       disabled={!editable || saving}
+                      aria-invalid={
+                        fieldErrors['incidentOrNearMiss.detail']
+                          ? true
+                          : undefined
+                      }
                       value={checklist.incidentOrNearMiss.detail}
                       onChange={(e) => {
                         const detail = e.target.value
+                        clearFieldError('incidentOrNearMiss.detail')
                         setChecklist((c) => {
                           const next = {
                             ...c,
@@ -1070,20 +1289,34 @@ export function SafetyFormPage({
                         })
                       }}
                     />
+                    {fieldErrors['incidentOrNearMiss.detail'] && (
+                      <span className="field-error" role="alert">
+                        {fieldErrors['incidentOrNearMiss.detail']}
+                      </span>
+                    )}
                   </label>
                   {editable && issueDrafts.incidentOrNearMiss && (
                     <>
                       <label className="safety-form__field">
                         <span>Immediate action *</span>
                         <textarea
-                          className="safety-form__control safety-form__textarea"
+                          className={`safety-form__control safety-form__textarea${fieldErrors['issue.incidentOrNearMiss.immediate_action'] ? ' is-invalid' : ''}`}
                           rows={2}
-                          required
                           disabled={saving}
+                          aria-invalid={
+                            fieldErrors[
+                              'issue.incidentOrNearMiss.immediate_action'
+                            ]
+                              ? true
+                              : undefined
+                          }
                           value={
                             issueDrafts.incidentOrNearMiss.immediate_action
                           }
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            clearFieldError(
+                              'issue.incidentOrNearMiss.immediate_action',
+                            )
                             setIssueDrafts((prev) => ({
                               ...prev,
                               incidentOrNearMiss: {
@@ -1096,9 +1329,20 @@ export function SafetyFormPage({
                                   prev.incidentOrNearMiss!.severity ?? 'high',
                               },
                             }))
-                          }
+                          }}
                           placeholder="What did the crew do right away?"
                         />
+                        {fieldErrors[
+                          'issue.incidentOrNearMiss.immediate_action'
+                        ] && (
+                          <span className="field-error" role="alert">
+                            {
+                              fieldErrors[
+                                'issue.incidentOrNearMiss.immediate_action'
+                              ]
+                            }
+                          </span>
+                        )}
                       </label>
                     </>
                   )}
@@ -1125,7 +1369,7 @@ export function SafetyFormPage({
                   type="button"
                   className="btn btn--ghost touch-target"
                   disabled={saving || !siteId}
-                  onClick={() => void persist('draft')}
+                  onClick={(e) => void onSaveDraft(e)}
                 >
                   <Save size={20} strokeWidth={2.5} aria-hidden />
                   {saving ? 'Saving…' : isAdmin ? 'Save' : 'Save draft'}
@@ -1134,7 +1378,7 @@ export function SafetyFormPage({
                   <button
                     type="submit"
                     className="btn btn--primary touch-target"
-                    disabled={saving || !siteId}
+                    disabled={saving}
                   >
                     <Send size={20} strokeWidth={2.5} aria-hidden />
                     {saving ? 'Submitting…' : 'Submit Safety Check'}

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   countActiveFilters,
   EMPTY_SUBMISSION_FILTERS,
+  excludeDraftSubmissions,
   filterSubmissions,
   uniqueSitesFromSubmissions,
   uniqueWorkersFromSubmissions,
@@ -75,8 +76,10 @@ const items: SubmissionWithDetails[] = [
 ]
 
 describe('filterSubmissions', () => {
-  it('returns all when filters are empty', () => {
-    expect(filterSubmissions(items, EMPTY_SUBMISSION_FILTERS)).toHaveLength(3)
+  it('hides drafts from admin filters even when status is all', () => {
+    expect(
+      filterSubmissions(items, EMPTY_SUBMISSION_FILTERS).map((i) => i.id),
+    ).toEqual(['1', '2'])
   })
 
   it('filters by site, worker, and status', () => {
@@ -85,7 +88,7 @@ describe('filterSubmissions', () => {
         ...EMPTY_SUBMISSION_FILTERS,
         siteId: 's1',
       }).map((i) => i.id),
-    ).toEqual(['1', '3'])
+    ).toEqual(['1'])
 
     expect(
       filterSubmissions(items, {
@@ -117,7 +120,7 @@ describe('filterSubmissions', () => {
         ...EMPTY_SUBMISSION_FILTERS,
         issues: 'no_issues',
       }).map((i) => i.id),
-    ).toEqual(['1', '3'])
+    ).toEqual(['1'])
   })
 
   it('builds unique site and worker options', () => {
@@ -139,8 +142,12 @@ describe('filterSubmissions', () => {
         dateFrom: '2026-10-01',
         dateTo: '',
         issues: 'has_issues',
-        status: 'draft',
+        status: 'submitted',
       }),
     ).toBe(4)
+  })
+
+  it('excludeDraftSubmissions keeps only non-draft rows', () => {
+    expect(excludeDraftSubmissions(items).map((i) => i.id)).toEqual(['1', '2'])
   })
 })

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  collectDailySafetyChecklistErrors,
   emptyDailySafetyChecklist,
   parseDailySafetyChecklist,
   serializeChecklist,
@@ -42,12 +43,12 @@ describe('daily safety checklist', () => {
 
   it('requires all tri-state answers before submit', () => {
     const c = emptyDailySafetyChecklist('2026-10-02')
-    expect(validateDailySafetyChecklist(c)).toMatch(/every checklist item/i)
+    expect(validateDailySafetyChecklist(c)).toMatch(/Hard hat worn/)
   })
 
   it('requires hazard present answer after checklist items', () => {
     const c = fillTriStates(emptyDailySafetyChecklist('2026-10-02'))
-    expect(validateDailySafetyChecklist(c)).toMatch(/hazards were observed/i)
+    expect(validateDailySafetyChecklist(c)).toMatch(/hazard was observed/i)
   })
 
   it('requires hazard detail when present', () => {
@@ -67,7 +68,9 @@ describe('daily safety checklist', () => {
       hazards: { present: true, description: 'Loose plank', severity: null },
       incidentOrNearMiss: { occurred: false, detail: '' },
     }
-    expect(validateDailySafetyChecklist(c)).toMatch(/severity/i)
+    expect(validateDailySafetyChecklist(c)).toBe(
+      'Select a severity for the hazard.',
+    )
   })
 
   it('requires incident detail when occurred is yes', () => {
@@ -77,7 +80,9 @@ describe('daily safety checklist', () => {
       hazards: { present: false, description: '', severity: null },
       incidentOrNearMiss: { occurred: true, detail: '  ' },
     }
-    expect(validateDailySafetyChecklist(c)).toMatch(/incident|near miss/i)
+    expect(validateDailySafetyChecklist(c)).toMatch(
+      /Describe the incident or near miss/,
+    )
   })
 
   it('accepts a complete checklist', () => {
@@ -88,5 +93,25 @@ describe('daily safety checklist', () => {
       incidentOrNearMiss: { occurred: false, detail: '' },
     }
     expect(validateDailySafetyChecklist(c)).toBeNull()
+  })
+
+  it('collects multiple field errors including jobsite', () => {
+    const c = emptyDailySafetyChecklist('2026-10-02')
+    c.hazards = { present: true, description: '', severity: null }
+    c.incidentOrNearMiss = { occurred: true, detail: '' }
+
+    const errors = collectDailySafetyChecklistErrors(c, { siteId: '' })
+    const fields = errors.map((e) => e.field)
+    expect(fields).toContain('siteId')
+    expect(fields).toContain('ppe.hardHat')
+    expect(fields).toContain('hazards.description')
+    expect(fields).toContain('hazards.severity')
+    expect(fields).toContain('incidentOrNearMiss.detail')
+    expect(errors.find((e) => e.field === 'siteId')?.message).toBe(
+      'Select a jobsite.',
+    )
+    expect(errors.find((e) => e.field === 'hazards.severity')?.message).toBe(
+      'Select a severity for the hazard.',
+    )
   })
 })

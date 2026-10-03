@@ -148,48 +148,148 @@ export function serializeChecklist(
   return { ...checklist }
 }
 
-const TRI_FIELDS: { group: keyof DailySafetyChecklist; key: string }[] = [
-  { group: 'ppe', key: 'hardHat' },
-  { group: 'ppe', key: 'highVis' },
-  { group: 'ppe', key: 'footwear' },
-  { group: 'ppe', key: 'eyeProtection' },
-  { group: 'fallProtection', key: 'edgesProtected' },
-  { group: 'fallProtection', key: 'fpInUse' },
-  { group: 'fallProtection', key: 'ladders' },
-  { group: 'toolsAndWorkArea', key: 'toolsCondition' },
-  { group: 'toolsAndWorkArea', key: 'workAreaClear' },
-  { group: 'toolsAndWorkArea', key: 'housekeeping' },
+export type ChecklistFieldKey =
+  | `ppe.${keyof DailySafetyChecklist['ppe']}`
+  | `fallProtection.${keyof DailySafetyChecklist['fallProtection']}`
+  | `toolsAndWorkArea.${keyof DailySafetyChecklist['toolsAndWorkArea']}`
+  | 'hazards.present'
+  | 'hazards.description'
+  | 'hazards.severity'
+  | 'incidentOrNearMiss.occurred'
+  | 'incidentOrNearMiss.detail'
+  | 'siteId'
+  | 'checkDate'
+
+export type ChecklistFieldError = {
+  field: ChecklistFieldKey
+  message: string
+}
+
+const TRI_FIELDS: {
+  group: 'ppe' | 'fallProtection' | 'toolsAndWorkArea'
+  key: string
+  label: string
+  field: ChecklistFieldKey
+}[] = [
+  { group: 'ppe', key: 'hardHat', label: 'Hard hat worn', field: 'ppe.hardHat' },
+  { group: 'ppe', key: 'highVis', label: 'High-vis vest', field: 'ppe.highVis' },
+  {
+    group: 'ppe',
+    key: 'footwear',
+    label: 'Appropriate footwear',
+    field: 'ppe.footwear',
+  },
+  {
+    group: 'ppe',
+    key: 'eyeProtection',
+    label: 'Eye protection (when required)',
+    field: 'ppe.eyeProtection',
+  },
+  {
+    group: 'fallProtection',
+    key: 'edgesProtected',
+    label: 'Edges / openings protected',
+    field: 'fallProtection.edgesProtected',
+  },
+  {
+    group: 'fallProtection',
+    key: 'fpInUse',
+    label: 'Fall protection in use',
+    field: 'fallProtection.fpInUse',
+  },
+  {
+    group: 'fallProtection',
+    key: 'ladders',
+    label: 'Ladders / access safe',
+    field: 'fallProtection.ladders',
+  },
+  {
+    group: 'toolsAndWorkArea',
+    key: 'toolsCondition',
+    label: 'Tools / equipment condition OK',
+    field: 'toolsAndWorkArea.toolsCondition',
+  },
+  {
+    group: 'toolsAndWorkArea',
+    key: 'workAreaClear',
+    label: 'Work area clear',
+    field: 'toolsAndWorkArea.workAreaClear',
+  },
+  {
+    group: 'toolsAndWorkArea',
+    key: 'housekeeping',
+    label: 'Housekeeping acceptable',
+    field: 'toolsAndWorkArea.housekeeping',
+  },
 ]
 
+/** Collect all Daily Safety Check field errors for in-app submit messaging. */
+export function collectDailySafetyChecklistErrors(
+  checklist: DailySafetyChecklist,
+  options?: { siteId?: string },
+): ChecklistFieldError[] {
+  const errors: ChecklistFieldError[] = []
+
+  if (options && !options.siteId?.trim()) {
+    errors.push({ field: 'siteId', message: 'Select a jobsite.' })
+  }
+
+  if (!checklist.checkDate?.trim()) {
+    errors.push({ field: 'checkDate', message: 'Select the check date.' })
+  }
+
+  for (const { group, key, label, field } of TRI_FIELDS) {
+    const section = checklist[group] as Record<string, TriState | null>
+    if (!isTriState(section[key])) {
+      errors.push({
+        field,
+        message: `Answer “${label}” (Yes, No, or N/A).`,
+      })
+    }
+  }
+
+  if (checklist.hazards.present === null) {
+    errors.push({
+      field: 'hazards.present',
+      message: 'Indicate whether a hazard was observed.',
+    })
+  } else if (checklist.hazards.present) {
+    if (!checklist.hazards.description.trim()) {
+      errors.push({
+        field: 'hazards.description',
+        message: 'Describe the hazard.',
+      })
+    }
+    if (!checklist.hazards.severity) {
+      errors.push({
+        field: 'hazards.severity',
+        message: 'Select a severity for the hazard.',
+      })
+    }
+  }
+
+  if (checklist.incidentOrNearMiss.occurred === null) {
+    errors.push({
+      field: 'incidentOrNearMiss.occurred',
+      message: 'Indicate whether an incident or near miss occurred.',
+    })
+  } else if (checklist.incidentOrNearMiss.occurred) {
+    if (!checklist.incidentOrNearMiss.detail.trim()) {
+      errors.push({
+        field: 'incidentOrNearMiss.detail',
+        message: 'Describe the incident or near miss.',
+      })
+    }
+  }
+
+  return errors
+}
+
+/** First checklist error message, or null when valid. */
 export function validateDailySafetyChecklist(
   checklist: DailySafetyChecklist,
 ): string | null {
-  for (const { group, key } of TRI_FIELDS) {
-    const section = checklist[group] as Record<string, TriState | null>
-    if (!isTriState(section[key])) {
-      return 'Answer every checklist item (Yes, No, or N/A) before submitting.'
-    }
-  }
-  if (checklist.hazards.present === null) {
-    return 'Indicate whether hazards were observed.'
-  }
-  if (checklist.hazards.present) {
-    if (!checklist.hazards.description.trim()) {
-      return 'Describe the hazard when Hazards is Yes.'
-    }
-    if (!checklist.hazards.severity) {
-      return 'Select hazard severity (Low, Moderate, or High).'
-    }
-  }
-  if (checklist.incidentOrNearMiss.occurred === null) {
-    return 'Indicate whether an incident or near miss occurred.'
-  }
-  if (checklist.incidentOrNearMiss.occurred) {
-    if (!checklist.incidentOrNearMiss.detail.trim()) {
-      return 'Add incident / near miss details when Yes is selected.'
-    }
-  }
-  return null
+  return collectDailySafetyChecklistErrors(checklist)[0]?.message ?? null
 }
 
 export const TRI_STATE_LABELS: Record<TriState, string> = {

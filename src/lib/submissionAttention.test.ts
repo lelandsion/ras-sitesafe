@@ -69,9 +69,9 @@ describe('sortAdminSubmissions', () => {
       'old-review',
       'new-submitted',
       'old-submitted',
-      'draft',
       'old-approved',
       'rejected',
+      'draft',
     ])
   })
 

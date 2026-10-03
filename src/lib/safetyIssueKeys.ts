@@ -104,6 +104,13 @@ export type IssueDraft = {
   description: string
   severity: IssueSeverity | null
   immediate_action: string
+  /** Optional local file for checklist-failure issue photos only. */
+  pendingPhoto?: File | null
+}
+
+export type IssueFieldError = {
+  field: string
+  message: string
 }
 
 export function emptyIssueDraft(spec: IssueFieldSpec): IssueDraft {
@@ -113,6 +120,7 @@ export function emptyIssueDraft(spec: IssueFieldSpec): IssueDraft {
     description: spec.defaultDescription?.trim() ?? '',
     severity: spec.defaultSeverity ?? null,
     immediate_action: '',
+    pendingPhoto: null,
   }
 }
 
@@ -133,6 +141,7 @@ export function reconcileIssueDrafts(
         description: fromChecklist || prev.description,
         severity:
           spec.defaultSeverity ?? prev.severity ?? null,
+        pendingPhoto: prev.pendingPhoto ?? null,
       }
     } else {
       next[spec.key] = emptyIssueDraft(spec)
@@ -141,24 +150,47 @@ export function reconcileIssueDrafts(
   return next
 }
 
+/**
+ * Optional issue photos belong on checklist “No” capture only —
+ * hazards / incidents use dedicated hazard photos instead.
+ */
+export function issuePhotoCaptureAllowed(key: ChecklistIssueKey | string): boolean {
+  return issueKindFromChecklistKey(key) === 'checklist'
+}
+
+/** Collect all issue-draft field errors for in-app submit messaging. */
+export function collectIssueDraftErrors(
+  drafts: Record<string, IssueDraft>,
+): IssueFieldError[] {
+  const errors: IssueFieldError[] = []
+  for (const key of Object.keys(drafts)) {
+    const d = drafts[key]
+    if (!d.description.trim()) {
+      errors.push({
+        field: `issue.${key}.description`,
+        message: `Describe the issue for “${d.item_label}”.`,
+      })
+    }
+    if (!d.severity) {
+      errors.push({
+        field: `issue.${key}.severity`,
+        message: `Select a severity for “${d.item_label}”.`,
+      })
+    }
+    if (!d.immediate_action.trim()) {
+      errors.push({
+        field: `issue.${key}.immediate_action`,
+        message: `Add the immediate action for “${d.item_label}”.`,
+      })
+    }
+  }
+  return errors
+}
+
 export function validateIssueDrafts(
   drafts: Record<string, IssueDraft>,
 ): string | null {
-  const keys = Object.keys(drafts)
-  if (keys.length === 0) return null
-  for (const key of keys) {
-    const d = drafts[key]
-    if (!d.description.trim()) {
-      return `Describe the issue for “${d.item_label}”.`
-    }
-    if (!d.severity) {
-      return `Select severity for “${d.item_label}”.`
-    }
-    if (!d.immediate_action.trim()) {
-      return `Add immediate action for “${d.item_label}”.`
-    }
-  }
-  return null
+  return collectIssueDraftErrors(drafts)[0]?.message ?? null
 }
 
 export const ISSUE_SEVERITY_LABELS: Record<IssueSeverity, string> = {

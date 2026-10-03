@@ -191,7 +191,11 @@ export async function deleteDraftSubmission(
   return { error: null }
 }
 
-/** Admin: all submissions visible via RLS, with site + submitter. */
+/**
+ * Admin Worker Submissions queue — excludes drafts.
+ * Drafts are private to the owning framer (framer home / RLS); admins review
+ * submitted work only.
+ */
 export async function listAdminSubmissions(): Promise<{
   data: SubmissionWithDetails[]
   error: string | null
@@ -214,6 +218,7 @@ export async function listAdminSubmissions(): Promise<{
       submitter:profiles!submissions_submitted_by_fkey ( id, display_name )
     `,
     )
+    .neq('status', 'draft')
     .order('updated_at', { ascending: false })
 
   if (error) {

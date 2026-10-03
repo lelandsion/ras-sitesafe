@@ -30,11 +30,20 @@ export function checkDateForSubmission(item: SubmissionWithDetails): string {
   return checklist.checkDate || item.created_at.slice(0, 10)
 }
 
+/** Drafts are framer-private — strip them from admin queues. */
+export function excludeDraftSubmissions<
+  T extends { status: SubmissionStatus },
+>(items: T[]): T[] {
+  return items.filter((item) => item.status !== 'draft')
+}
+
 export function filterSubmissions(
   items: SubmissionWithDetails[],
   filters: SubmissionListFilters,
 ): SubmissionWithDetails[] {
   return items.filter((item) => {
+    // Admin UI never surfaces other people's drafts.
+    if (item.status === 'draft') return false
     if (filters.siteId && item.site_id !== filters.siteId) return false
     if (filters.workerId && item.submitted_by !== filters.workerId) return false
     if (filters.status !== 'all' && item.status !== filters.status) return false

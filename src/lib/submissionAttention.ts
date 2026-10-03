@@ -36,13 +36,13 @@ export function reviewPatchOnCorrectiveActionCreate(
   }
 }
 
-/** Attention order for the admin Worker Submissions list. */
+/** Attention order for the admin Worker Submissions list (drafts excluded). */
 const ADMIN_STATUS_RANK: Record<SubmissionStatus, number> = {
   under_review: 0,
   submitted: 1,
-  draft: 2,
-  approved: 3,
-  rejected: 4,
+  approved: 2,
+  rejected: 3,
+  draft: 99,
 }
 
 function attentionDateMs(item: Pick<SubmissionWithDetails, 'updated_at' | 'created_at'>): number {
@@ -52,8 +52,8 @@ function attentionDateMs(item: Pick<SubmissionWithDetails, 'updated_at' | 'creat
 }
 
 /**
- * Sort for admin attention: under_review → submitted → draft → approved → rejected,
- * newest-first within each status bucket.
+ * Sort for admin attention: under_review → submitted → approved → rejected,
+ * newest-first within each status bucket. Drafts are not shown in admin lists.
  */
 export function sortAdminSubmissions<
   T extends Pick<SubmissionWithDetails, 'status' | 'updated_at' | 'created_at'>,

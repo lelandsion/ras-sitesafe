@@ -94,9 +94,9 @@ function toChecklistRows(items: SubmissionWithDetails[]): ChecklistSubmissionRow
   }))
 }
 
+/** Drafts are framer-private — not an admin filter option. */
 const STATUS_FILTER_OPTIONS: Array<SubmissionStatus | 'all'> = [
   'all',
-  'draft',
   'submitted',
   'under_review',
   'approved',
@@ -664,11 +664,7 @@ export function AdminHomePage() {
                           )
                           const issueCount = countStructuredIssues(c)
                           const busy = updatingId === item.id
-                          const canReview = item.status !== 'draft'
-                          const detailPath =
-                            item.status === 'draft'
-                              ? `/admin/submissions/${item.id}`
-                              : `/admin/submissions/${item.id}/preview`
+                          const detailPath = `/admin/submissions/${item.id}/preview`
                           return (
                             <tr
                               key={item.id}
@@ -704,51 +700,42 @@ export function AdminHomePage() {
                               </td>
                               <td>
                                 <div className="admin-table__actions">
-                                  {canReview ? (
-                                    <select
-                                      className="admin-row__select touch-target"
-                                      defaultValue=""
-                                      key={`${item.id}-${item.status}`}
-                                      disabled={busy}
-                                      aria-label={`Review ${item.sites?.name ?? 'submission'}`}
-                                      onChange={(e) => {
-                                        const next = e.target.value
-                                        if (
-                                          next !== 'under_review' &&
-                                          next !== 'approved' &&
-                                          next !== 'rejected'
-                                        ) {
-                                          return
-                                        }
-                                        void onReview(
-                                          item.id,
-                                          next as typeof next & SubmissionStatus,
-                                        )
-                                      }}
-                                    >
-                                      <option value="" disabled>
-                                        Review…
+                                  <select
+                                    className="admin-row__select touch-target"
+                                    defaultValue=""
+                                    key={`${item.id}-${item.status}`}
+                                    disabled={busy}
+                                    aria-label={`Review ${item.sites?.name ?? 'submission'}`}
+                                    onChange={(e) => {
+                                      const next = e.target.value
+                                      if (
+                                        next !== 'under_review' &&
+                                        next !== 'approved' &&
+                                        next !== 'rejected'
+                                      ) {
+                                        return
+                                      }
+                                      void onReview(
+                                        item.id,
+                                        next as typeof next & SubmissionStatus,
+                                      )
+                                    }}
+                                  >
+                                    <option value="" disabled>
+                                      Review…
+                                    </option>
+                                    {ADMIN_REVIEW_STATUSES.map((s) => (
+                                      <option
+                                        key={s}
+                                        value={s}
+                                        disabled={s === item.status}
+                                      >
+                                        {SUBMISSION_STATUS_LABELS[s]}
                                       </option>
-                                      {ADMIN_REVIEW_STATUSES.map((s) => (
-                                        <option
-                                          key={s}
-                                          value={s}
-                                          disabled={s === item.status}
-                                        >
-                                          {SUBMISSION_STATUS_LABELS[s]}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  ) : (
-                                    <Link
-                                      to={`/admin/submissions/${item.id}`}
-                                      className="admin-table__draft touch-target"
-                                    >
-                                      Edit draft
-                                    </Link>
-                                  )}
+                                    ))}
+                                  </select>
                                   <Link
-                                    to={`/admin/submissions/${item.id}/preview`}
+                                    to={detailPath}
                                     className="btn btn--ghost touch-target admin-table__pdf"
                                   >
                                     <Eye size={18} strokeWidth={2.5} aria-hidden />

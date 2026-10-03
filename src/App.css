@@ -2899,6 +2899,47 @@ select.field__input {
   margin: 0;
 }
 
+.issue-capture__file-input {
+  max-width: 100%;
+}
+
+.issue-capture__file {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--ras-muted);
+  overflow-wrap: anywhere;
+}
+
+.field-error {
+  display: block;
+  margin-top: 0.35rem;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ras-danger, #b42318);
+}
+
+.safety-form__control.is-invalid,
+.tri-field.is-invalid,
+.yesno-field.is-invalid {
+  border-color: var(--ras-danger, #b42318);
+}
+
+.tri-field.is-invalid,
+.yesno-field.is-invalid {
+  border: 2px solid var(--ras-danger, #b42318);
+  border-radius: var(--ras-radius);
+  padding: 0.5rem 0.65rem;
+}
+
+.form-banner--error ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}
+
 .issue-outcome-list,
 .safety-issue-list {
   list-style: none;
