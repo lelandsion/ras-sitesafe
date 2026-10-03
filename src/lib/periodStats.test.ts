@@ -94,7 +94,23 @@ describe('periodStats', () => {
     expect(summary.openIssueCount).toBeGreaterThan(0)
     expect(summary.photoCount).toBe(3)
     expect(summary.topIssues.some((t) => t.count > 0)).toBe(true)
+    expect(summary.appendixIssues.length).toBe(summary.safetyIssueCount)
     expect(summary.appendixIssues.length).toBe(summary.openIssueCount)
     expect(summary.appendixPhotos).toEqual([])
+  })
+
+  it('includes Reviewed (approved) issues in appendix and safetyIssueCount', () => {
+    const approved = { ...rowWithIssues(), id: 'sub-approved', status: 'approved' as const }
+    const summary = buildAggregateSummary({
+      rows: [approved],
+      fromDate: '2026-10-01',
+      toDate: '2026-10-31',
+      assignedFramerCount: 1,
+      photoCount: 0,
+    })
+    expect(summary.openIssueCount).toBe(0)
+    expect(summary.appendixIssues.length).toBeGreaterThan(0)
+    expect(summary.safetyIssueCount).toBe(summary.appendixIssues.length)
+    expect(summary.appendixIssues.every((i) => i.status === 'approved')).toBe(true)
   })
 })

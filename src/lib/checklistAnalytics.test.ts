@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   aggregateSafetyMetrics,
   buildOpenIssues,
+  buildPeriodIssues,
   complianceRate,
   countStructuredIssues,
   issuesByCategory,
@@ -101,6 +102,11 @@ describe('checklistAnalytics', () => {
     expect(open.every((i) => i.submissionId === 'open')).toBe(true)
     expect(open.some((i) => i.category === 'Hazard')).toBe(true)
     expect(open.some((i) => i.category === 'Incident / near miss')).toBe(true)
+
+    const period = buildPeriodIssues(rows)
+    expect(period.some((i) => i.submissionId === 'open')).toBe(true)
+    expect(period.some((i) => i.submissionId === 'done')).toBe(true)
+    expect(period.every((i) => i.submissionId !== 'draft')).toBe(true)
   })
 
   it('aggregates safety metrics across non-draft rows', () => {

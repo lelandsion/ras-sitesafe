@@ -123,96 +123,119 @@ export function issuesByCategory(
   }))
 }
 
-export function buildOpenIssues(rows: ChecklistSubmissionRow[]): OpenIssue[] {
+function collectStructuredIssuesFromRow(row: ChecklistSubmissionRow): OpenIssue[] {
   const issues: OpenIssue[] = []
-  const openStatuses: SubmissionStatus[] = [
-    'submitted',
-    'under_review',
-    'rejected',
-  ]
+  const c = parseDailySafetyChecklist(row.checklist, row.created_at.slice(0, 10))
 
-  for (const row of rows) {
-    if (!openStatuses.includes(row.status)) continue
-    const c = parseDailySafetyChecklist(row.checklist, row.created_at.slice(0, 10))
-
-    for (const [key, label] of Object.entries(PPE_LABELS) as [
-      keyof typeof PPE_LABELS,
-      string,
-    ][]) {
-      if (c.ppe[key] === 'no') {
-        issues.push({
-          submissionId: row.id,
-          siteName: row.siteName,
-          workerName: row.workerName,
-          category: 'PPE',
-          summary: `${label}: No`,
-          severity: null,
-          updatedAt: row.updated_at,
-          status: row.status,
-        })
-      }
-    }
-    for (const [key, label] of Object.entries(FP_LABELS) as [
-      keyof typeof FP_LABELS,
-      string,
-    ][]) {
-      if (c.fallProtection[key] === 'no') {
-        issues.push({
-          submissionId: row.id,
-          siteName: row.siteName,
-          workerName: row.workerName,
-          category: 'Fall protection',
-          summary: `${label}: No`,
-          severity: null,
-          updatedAt: row.updated_at,
-          status: row.status,
-        })
-      }
-    }
-    for (const [key, label] of Object.entries(TOOLS_LABELS) as [
-      keyof typeof TOOLS_LABELS,
-      string,
-    ][]) {
-      if (c.toolsAndWorkArea[key] === 'no') {
-        issues.push({
-          submissionId: row.id,
-          siteName: row.siteName,
-          workerName: row.workerName,
-          category: 'Tools & work area',
-          summary: `${label}: No`,
-          severity: null,
-          updatedAt: row.updated_at,
-          status: row.status,
-        })
-      }
-    }
-    if (c.hazards.present) {
+  for (const [key, label] of Object.entries(PPE_LABELS) as [
+    keyof typeof PPE_LABELS,
+    string,
+  ][]) {
+    if (c.ppe[key] === 'no') {
       issues.push({
         submissionId: row.id,
         siteName: row.siteName,
         workerName: row.workerName,
-        category: 'Hazard',
-        summary: c.hazards.description.trim() || 'Hazard reported',
-        severity: c.hazards.severity,
-        updatedAt: row.updated_at,
-        status: row.status,
-      })
-    }
-    if (c.incidentOrNearMiss.occurred) {
-      issues.push({
-        submissionId: row.id,
-        siteName: row.siteName,
-        workerName: row.workerName,
-        category: 'Incident / near miss',
-        summary:
-          c.incidentOrNearMiss.detail.trim() || 'Incident / near miss reported',
-        severity: 'moderate',
+        category: 'PPE',
+        summary: `${label}: No`,
+        severity: null,
         updatedAt: row.updated_at,
         status: row.status,
       })
     }
   }
+  for (const [key, label] of Object.entries(FP_LABELS) as [
+    keyof typeof FP_LABELS,
+    string,
+  ][]) {
+    if (c.fallProtection[key] === 'no') {
+      issues.push({
+        submissionId: row.id,
+        siteName: row.siteName,
+        workerName: row.workerName,
+        category: 'Fall protection',
+        summary: `${label}: No`,
+        severity: null,
+        updatedAt: row.updated_at,
+        status: row.status,
+      })
+    }
+  }
+  for (const [key, label] of Object.entries(TOOLS_LABELS) as [
+    keyof typeof TOOLS_LABELS,
+    string,
+  ][]) {
+    if (c.toolsAndWorkArea[key] === 'no') {
+      issues.push({
+        submissionId: row.id,
+        siteName: row.siteName,
+        workerName: row.workerName,
+        category: 'Tools & work area',
+        summary: `${label}: No`,
+        severity: null,
+        updatedAt: row.updated_at,
+        status: row.status,
+      })
+    }
+  }
+  if (c.hazards.present) {
+    issues.push({
+      submissionId: row.id,
+      siteName: row.siteName,
+      workerName: row.workerName,
+      category: 'Hazard',
+      summary: c.hazards.description.trim() || 'Hazard reported',
+      severity: c.hazards.severity,
+      updatedAt: row.updated_at,
+      status: row.status,
+    })
+  }
+  if (c.incidentOrNearMiss.occurred) {
+    issues.push({
+      submissionId: row.id,
+      siteName: row.siteName,
+      workerName: row.workerName,
+      category: 'Incident / near miss',
+      summary:
+        c.incidentOrNearMiss.detail.trim() || 'Incident / near miss reported',
+      severity: 'moderate',
+      updatedAt: row.updated_at,
+      status: row.status,
+    })
+  }
 
+  return issues
+}
+
+/** Open / in-queue issues only (excludes draft + Reviewed/approved). */
+export function buildOpenIssues(rows: ChecklistSubmissionRow[]): OpenIssue[] {
+  const openStatuses: SubmissionStatus[] = [
+    'submitted',
+    'under_review',
+    'rejected',
+  ]
+  const issues: OpenIssue[] = []
+  for (const row of rows) {
+    if (!openStatuses.includes(row.status)) continue
+    issues.push(...collectStructuredIssuesFromRow(row))
+  }
+  return issues.sort(
+    (a, b) =>
+      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  )
+}
+
+/**
+ * All structured checklist issues in the period for report appendix / counts.
+ * Includes submitted, under_review, rejected, and approved (Reviewed) —
+ * only drafts are skipped.
+ */
+export function buildPeriodIssues(rows: ChecklistSubmissionRow[]): OpenIssue[] {
+  const issues: OpenIssue[] = []
+  for (const row of rows) {
+    if (row.status === 'draft') continue
+    issues.push(...collectStructuredIssuesFromRow(row))
+  }
   return issues.sort(
     (a, b) =>
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),

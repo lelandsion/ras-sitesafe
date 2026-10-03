@@ -113,30 +113,40 @@ export async function buildPeriodReportSummary(params: {
   })
 
   // Prefer DB safety_issue rows (description / immediate action) when present.
+  // Include every CA status: open, in_progress, ready_for_review, resolved
+  // (and issues with no CA yet). Period membership uses checklist checkDate
+  // via `rows` — not issue created_at / submission created_at alone.
   const dbAppendix: ReportAppendixIssue[] = []
   for (const row of rows) {
     const { data, error: issuesError } = await listIssuesForSubmission(row.id)
     if (issuesError || data.length === 0) continue
     const c = parseDailySafetyChecklist(row.checklist, row.created_at.slice(0, 10))
     for (const issue of data) {
+      const caStatus = issue.corrective_action?.status
       dbAppendix.push({
         date: c.checkDate,
         workerName: row.workerName,
         category: issue.item_label || issue.checklist_item_key,
         summary: issue.description,
         severity: issue.severity,
-        status: row.status,
+        status: caStatus ?? row.status,
         description: issue.description,
         immediateAction: issue.immediate_action,
       })
     }
   }
 
+  const appendixIssues =
+    dbAppendix.length > 0 ? dbAppendix : summary.appendixIssues
+
   return {
     summary: {
       ...summary,
       appendixPhotos: options.photos ? appendixPhotos : [],
-      appendixIssues: dbAppendix.length > 0 ? dbAppendix : summary.appendixIssues,
+      appendixIssues,
+      // Keep tile count aligned with appendix when DB rows are authoritative.
+      safetyIssueCount:
+        dbAppendix.length > 0 ? dbAppendix.length : summary.safetyIssueCount,
     },
     rows,
     usedDemoFallback: false,

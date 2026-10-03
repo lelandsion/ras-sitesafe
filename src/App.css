@@ -1534,11 +1534,17 @@ a.admin-metrics__item--link:focus-visible {
   cursor: pointer;
 }
 
-.admin-filters__btn:hover {
+.admin-filters__btn:hover:not(.admin-filters__btn--active) {
   background: rgba(4, 83, 57, 0.08);
 }
 
 .admin-filters__btn--active {
+  background: var(--ras-primary);
+  border-color: var(--ras-primary-deep);
+  color: var(--ras-on-primary);
+}
+
+.admin-filters__btn--active:hover {
   background: var(--ras-primary);
   border-color: var(--ras-primary-deep);
   color: var(--ras-on-primary);
@@ -1731,12 +1737,18 @@ a.admin-metrics__item--link:focus-visible {
   text-decoration: none;
 }
 
-.admin-tabs__link:hover {
+.admin-tabs__link:hover:not(.admin-tabs__link--active) {
   border-color: var(--ras-primary);
   color: var(--ras-primary);
 }
 
 .admin-tabs__link--active {
+  background: var(--ras-primary);
+  border-color: var(--ras-primary);
+  color: var(--ras-on-primary);
+}
+
+.admin-tabs__link--active:hover {
   background: var(--ras-primary);
   border-color: var(--ras-primary);
   color: var(--ras-on-primary);
@@ -3437,6 +3449,14 @@ a.admin-metrics__item--link:focus-visible {
   font-size: 0.85rem;
 }
 
+/* Selected filter uses btn--primary; keep hover readable (no ghost-green wash). */
+.safety-issue-filters__btn.btn--primary:hover {
+  background: var(--ras-primary);
+  border-color: var(--ras-primary-deep);
+  color: var(--ras-on-primary);
+  transform: none;
+}
+
 .safety-issue-card--ready {
   border-color: color-mix(in srgb, #c45c26 55%, var(--ras-border));
   box-shadow: 0 0 0 1px color-mix(in srgb, #c45c26 25%, transparent);
@@ -3770,11 +3790,22 @@ a.admin-metrics__item--link:focus-visible {
   cursor: pointer;
 }
 
+.compliance-tabs__btn:hover:not(.compliance-tabs__btn--active) {
+  border-color: var(--ras-primary);
+  color: var(--ras-primary);
+}
+
 .compliance-tabs__btn--active {
   border-color: var(--ras-primary);
   background: color-mix(in srgb, var(--ras-primary) 10%, white);
   color: var(--ras-primary-deep);
   box-shadow: inset 0 -3px 0 var(--ras-primary);
+}
+
+.compliance-tabs__btn--active:hover {
+  border-color: var(--ras-primary);
+  background: color-mix(in srgb, var(--ras-primary) 10%, white);
+  color: var(--ras-primary-deep);
 }
 
 .compliance-layout {

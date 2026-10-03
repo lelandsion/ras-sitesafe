@@ -1,5 +1,6 @@
 import {
   buildOpenIssues,
+  buildPeriodIssues,
   complianceOverTime,
   countStructuredIssues,
   issuesOverTime,
@@ -204,10 +205,13 @@ export function buildAggregateSummary(params: {
   }
 
   const openIssues = buildOpenIssues(rows)
-  const issueLines = openIssues.slice(0, 12).map(
+  // Appendix + period totals include every non-draft issue (incl. Reviewed /
+  // resolved work) — not only open queue statuses.
+  const periodIssues = buildPeriodIssues(rows)
+  const issueLines = periodIssues.slice(0, 12).map(
     (i) => `${i.workerName} · ${i.category}: ${i.summary}`,
   )
-  const appendixIssues: ReportAppendixIssue[] = openIssues.map((i) => {
+  const appendixIssues: ReportAppendixIssue[] = periodIssues.map((i) => {
     const row = rows.find((r) => r.id === i.submissionId)
     const c = row
       ? parseDailySafetyChecklist(row.checklist, row.created_at.slice(0, 10))
@@ -246,7 +250,7 @@ export function buildAggregateSummary(params: {
     missingSubmissions: missing,
     completionPct,
     expectedIsEstimate: estimated,
-    safetyIssueCount: countSafetyIssues(rows),
+    safetyIssueCount: periodIssues.length,
     highPriorityCount: countHighPriorityHazards(rows),
     nearMissCount: incidentCount,
     resolvedIssueCount: countResolvedIssues(rows),

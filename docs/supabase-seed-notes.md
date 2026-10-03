@@ -1,36 +1,36 @@
-# Seed / apply notes — RAS SiteSafe
+# Supabase setup & seed — RAS SiteSafe
 
-## Apply the migration
+Short redistributable checklist. Pair with README Test credentials and (if present) `docs/supabase-manual-sql.md` for paste-ready SQL parts.
 
-Supabase CLI is not logged in on this machine (`SUPABASE_ACCESS_TOKEN` unset), so the schema was **not** applied remotely from the agent. Apply it yourself:
+## 1. Apply schema
 
-### Option A — Dashboard SQL Editor (fastest)
+Apply every file in [`supabase/migrations/`](../supabase/migrations/) **in filename order** (SQL Editor or CLI).
 
-1. Open your project: https://supabase.com/dashboard/project/kgqxbyrgjxglboulrqft
-2. Go to **SQL Editor** → New query
-3. Paste the full contents of [`supabase/migrations/20261002000100_sitesafe_schema.sql`](../supabase/migrations/20261002000100_sitesafe_schema.sql)
-4. Run. Confirm tables under **Table Editor**: `profiles`, `sites`, `site_assignments`, `submissions`, `submission_photos`
-5. Confirm bucket **submission-photos** under **Storage**
-6. For **Admin → Sites** framer search, also run [`supabase/migrations/20261002000200_admin_framer_directory.sql`](../supabase/migrations/20261002000200_admin_framer_directory.sql) (creates `admin_list_framers()` RPC)
+### Option A — Dashboard SQL Editor
+
+1. Open your Supabase project → **SQL Editor**
+2. Paste and run each migration file from oldest to newest
+3. Confirm tables: `profiles`, `sites`, `site_assignments`, `submissions`, `submission_photos`, `safety_issues`, `corrective_actions`, `saved_reports`
+4. Confirm Storage bucket **`submission-photos`**
 
 ### Option B — Supabase CLI
 
 ```bash
 npx supabase login
-npx supabase link --project-ref kgqxbyrgjxglboulrqft
+npx supabase link --project-ref <your-project-ref>
 npx supabase db push
 ```
 
-## Create demo Auth users
+## 2. Create demo Auth users
 
-In **Authentication → Users → Add user** (or Auth Admin API), create:
+**Authentication → Users → Add user** (auto-confirm email). Password for both: **`testpassword`**.
 
 | Name | Role | Email | Password |
 | --- | --- | --- | --- |
-| Sarah Mitchell | admin | `admin@ras-sitesafe-demo.com` | *(choose a shared demo password; put it in README Test Credentials)* |
-| Daniel Ortiz | framer | `framer@ras-sitesafe-demo.com` | *(same shared demo password)* |
+| Sarah Mitchell | admin | `admin@ras-sitesafe-demo.com` | `testpassword` |
+| Daniel Ortiz | framer | `framer@ras-sitesafe-demo.com` | `testpassword` |
 
-When creating each user, set user metadata so the `handle_new_user` trigger assigns role/name:
+User metadata (so `handle_new_user` sets role/name):
 
 ```json
 { "display_name": "Sarah Mitchell", "role": "admin" }
@@ -40,7 +40,7 @@ When creating each user, set user metadata so the `handle_new_user` trigger assi
 { "display_name": "Daniel Ortiz", "role": "framer" }
 ```
 
-If profiles already exist with the wrong role, fix in SQL:
+If roles are wrong after create:
 
 ```sql
 update public.profiles
@@ -52,56 +52,37 @@ set display_name = 'Daniel Ortiz', role = 'framer'
 where id = (select id from auth.users where email = 'framer@ras-sitesafe-demo.com');
 ```
 
-## Seed RAS jobsites (form dropdown)
+## 3. Seed jobsites + assign the framer
 
-After Auth users exist, populate the framer safety form **Jobsite** dropdown with realistic Ron Anderson & Sons / Vancouver Island framing sites and assign them to Daniel.
+**Auth users must exist first.** Run [`supabase/seed/ras_jobsites.sql`](../supabase/seed/ras_jobsites.sql):
 
-### Option A — Dashboard SQL Editor (recommended)
+- Inserts demo RAS jobsites (idempotent by name)
+- Assigns them to `framer@ras-sitesafe-demo.com`
 
-1. Open **SQL Editor** → New query
-2. Paste the full contents of [`supabase/seed/ras_jobsites.sql`](../supabase/seed/ras_jobsites.sql)
-3. Run once (safe to re-run: inserts by name only if missing; assignments use `ON CONFLICT DO NOTHING`)
+If the framer Auth user was missing, sites still insert and assignments no-op — re-run the seed after creating the user, or use Admin → Sites → Assign.
 
-Example site names included:
+- Framers need **site_assignments** to see jobsites on `/framer/new`
+- Admins see all active `sites` via RLS (no assignment required)
 
-- Langford Yard — Shop & Prefab Staging
-- North Yard — Truss & Panel Laydown
-- Millstream Heights — Phase 2 Framing
-- Royal Bay — Colwood Residential
-- Bear Mountain — Townhomes Framing
-- Westshore Commons — Multi-Family Formwork
-- View Royal Waterfront — Stick Frame
-- Cobble Hill — Cowichan Valley Spec Homes
+## 4. App env
 
-Then sign in as `framer@ras-sitesafe-demo.com` → **New report** (`/framer/new`) — the dropdown should list those assigned sites. Admins see all active sites via RLS; framers only see assignments.
-
-If Daniel’s profile is missing, the site rows still insert; re-run the seed after creating the Auth user to attach `site_assignments`.
-
-### Option B — one-off sample (legacy)
-
-```sql
-insert into public.sites (name, address)
-select 'RAS Demo Jobsite — North Yard', '123 Framing Lane'
-where not exists (
-  select 1 from public.sites where name = 'RAS Demo Jobsite — North Yard'
-);
-
-insert into public.site_assignments (site_id, framer_id)
-select s.id, p.id
-from public.sites s
-cross join lateral (
-  select pr.id
-  from public.profiles pr
-  join auth.users u on u.id = pr.id
-  where u.email = 'framer@ras-sitesafe-demo.com'
-  limit 1
-) p
-where s.name = 'RAS Demo Jobsite — North Yard'
-on conflict (site_id, framer_id) do nothing;
+```bash
+cp .env.example .env.local
 ```
 
-## Photo constraints (client + bucket)
+Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (publishable/anon only). Never commit real keys.
+
+## 5. Smoke
+
+```bash
+npm install
+npm run dev   # http://127.0.0.1:4321
+```
+
+Sign in as admin and framer with **`testpassword`**. Full manual coverage: [`docs/test-plan.md`](./test-plan.md).
+
+## Photo constraints
 
 - MIME: `image/jpeg`, `image/png`, `image/webp`
-- Max size: **8 MiB** (enforced on the Storage bucket; mirror in UI later)
-- Path: `{auth.uid()}/{submission_id}/{filename}`
+- Max size: **8 MiB**
+- Path pattern: `{auth.uid()}/{submission_id}/{filename}`

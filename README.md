@@ -2,7 +2,7 @@
 
 **Mobile-first site safety form + compliance dashboard** for [Ron Anderson & Sons](https://www.ronandersonandsons.com/) — built as a junior developer technical assessment.
 
-Framers submit jobsite safety checks (with photos) from a phone. Admins review submissions and track compliance from a dashboard with charts.
+Framers complete a Daily Safety Check (with site/hazard photos) from a phone. Admins review submissions, manage Safety Issues / corrective actions, track Daily Compliance, and export aggregate monthly reports with an appendix.
 
 | | |
 | --- | --- |
@@ -28,10 +28,16 @@ Framers submit jobsite safety checks (with photos) from a phone. Admins review s
 ## Features
 
 - **Login & roles** — Supabase Auth; route guards for `admin` and `framer` (no public sign-up)
-- **Framer flow** — assigned sites, Daily Safety Check, JPEG/PNG/WebP photos; **No** answers capture safety issues
-- **Corrective actions** — Admin Safety Issues: create CA → In Progress → Resolve; framer sees outcome
-- **Daily Compliance** — Sites → Daily Compliance crew status (Assigned / Submitted / Missing / Issues)
-- **Admin dashboard** — Today's compliance strip, submission filters, click-through review, Recharts
+- **Account** — `/account` profile summary (email, role, assigned sites, activity)
+- **Framer Daily Safety Check** — assigned jobsites, checklist (PPE / fall / tools), hazards & incidents, **Save draft** or **Submit**
+- **Photos** — JPEG/PNG/WebP site photos + hazard photos (`photo_kind`); issue evidence when answering **No**
+- **Safety issues** — field capture on checklist failures; Admin **Safety Issues** queue with filters (All / Ready for review / Open / In progress / Resolved / No CA)
+- **Corrective actions** — admin create CA → In progress → framer **Ready for review** → admin **Resolve** (resolution notes)
+- **Reviewed status** — admin marks submissions **Reviewed** (DB status `approved`; UI label “Reviewed”)
+- **Admin dashboard** — compliance metrics, charts, submission filters (site / worker / dates / issues / status), click-through to form
+- **Daily Compliance** — Sites → Daily Compliance crew status (Assigned / Submitted / Missing / Issues) with date + tabs
+- **Aggregate reports** — monthly site Safety Report: compliance tiles, top issues, charts, notable issues, collapsible **Appendix** (all period issues + photos), PDF export, saved reports
+- **PDF export** — daily-check PDF and branded monthly period PDF
 
 ---
 
@@ -41,8 +47,8 @@ Demo accounts for assessors (fictional identities — not personal emails). Shar
 
 | Role | Name | Email | Password |
 | --- | --- | --- | --- |
-| Admin | Sarah Mitchell | `admin@ras-sitesafe-demo.com` | *(paste shared demo password here)* |
-| Framer | Daniel Ortiz | `framer@ras-sitesafe-demo.com` | *(same as above)* |
+| Admin | Sarah Mitchell | `admin@ras-sitesafe-demo.com` | `testpassword` |
+| Framer | Daniel Ortiz | `framer@ras-sitesafe-demo.com` | `testpassword` |
 
 > Seed Auth users in Supabase first — see [`docs/supabase-seed-notes.md`](docs/supabase-seed-notes.md).
 
@@ -64,7 +70,7 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-publishable-or-anon-key
 ```
 
-Use the **publishable / anon** key only — never the service role key.
+Use the **publishable / anon** key only — never the service role key. Keep [`.env.example`](.env.example) as an empty template for redistributors.
 
 ```bash
 npm run dev
@@ -79,14 +85,14 @@ npm test          # Vitest watch mode
 npm run test:run  # single CI run
 ```
 
-Manual QA (landing, login, framer, admin, role isolation, deploy smoke): [`docs/test-plan.md`](docs/test-plan.md).
+Manual QA: [`docs/test-plan.md`](docs/test-plan.md).
 
 ### Apply schema (once)
 
-1. Paste [`supabase/migrations/20261002000100_sitesafe_schema.sql`](supabase/migrations/20261002000100_sitesafe_schema.sql) in Supabase → **SQL Editor**, or
+1. Paste migrations from [`supabase/migrations/`](supabase/migrations/) in Supabase → **SQL Editor** (in filename order), or
 2. `npx supabase login` → `npx supabase link` → `npx supabase db push`
 
-Then create the demo Auth users and optional sample site — steps in [`docs/supabase-seed-notes.md`](docs/supabase-seed-notes.md).
+Then create the demo Auth users and seed jobsites — [`docs/supabase-seed-notes.md`](docs/supabase-seed-notes.md). Full paste-ready SQL parts (if maintained in your project docs pack): `docs/supabase-manual-sql.md`.
 
 ---
 
@@ -96,7 +102,9 @@ Then create the demo Auth users and optional sample site — steps in [`docs/sup
 
 - Diagram: [`docs/ras-sitesafe-erd.png`](docs/ras-sitesafe-erd.png)
 - Mermaid / notes: [`docs/ras-sitesafe-erd.md`](docs/ras-sitesafe-erd.md)
-- Schema + RLS + Storage: [`supabase/migrations/20261002000100_sitesafe_schema.sql`](supabase/migrations/20261002000100_sitesafe_schema.sql)
+- Schema + RLS + Storage: [`supabase/migrations/`](supabase/migrations/)
+
+Core entities: `profiles`, `sites`, `site_assignments` (with assignment history via `unassigned_at`), `submissions` (+ checklist JSON), `submission_photos` (`photo_kind`), `safety_issues`, `corrective_actions` (`framer_completed_at`, status incl. `ready_for_review`), `saved_reports`.
 
 ---
 
@@ -116,14 +124,14 @@ Then create the demo Auth users and optional sample site — steps in [`docs/sup
 
 ```
 src/
-  components/   # auth guards, layout, form photo upload, admin chart
-  pages/        # login, admin dashboard, framer home + safety form
+  components/   # auth guards, layout, form photo upload, admin chart/reports
+  pages/        # login, admin, framer, account
   hooks/        # AuthProvider / useAuth
-  services/     # sites, submissions, photos (Supabase client calls)
-  lib/          # supabase client
+  services/     # Supabase client calls (sites, submissions, photos, issues, CA, reports)
+  lib/          # analytics, period report, PDF export, filters
   types/        # DB / domain types
 supabase/migrations/   # schema, enums, RLS, storage policies
-docs/                  # ERD, seed notes
+docs/                  # ERD, seed notes, test plan
 ```
 
 ---
