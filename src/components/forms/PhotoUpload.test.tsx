@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SubmissionPhoto } from '../../types/database'
@@ -128,5 +128,80 @@ describe('PhotoUpload', () => {
     expect(uploadSubmissionPhoto).not.toHaveBeenCalled()
     expect(onChange).not.toHaveBeenCalled()
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('still uploads after input clear while draft create is in flight', async () => {
+    // Repro: first site-photo pick on /framer/new — onChange clears input.value
+    // while ensureSubmissionId awaits; a live FileList would then be empty.
+    let resolveDraft: (id: string) => void = () => {}
+    const ensureSubmissionId = vi.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveDraft = resolve
+        }),
+    )
+    const onChange = vi.fn()
+    const uploaded = fakePhoto('p-live')
+    uploadSubmissionPhoto.mockResolvedValue({ data: uploaded, error: null })
+
+    render(
+      <PhotoUpload
+        userId="user-1"
+        submissionId={null}
+        ensureSubmissionId={ensureSubmissionId}
+        photos={[]}
+        onChange={onChange}
+        photoKind="site"
+        triggerLabel="Add site photo"
+      />,
+    )
+
+    const file = new File([new Uint8Array([1, 2, 3])], 'site.jpg', {
+      type: 'image/jpeg',
+    })
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement
+
+    // Drive change manually so we can clear value while draft create is pending
+    // (userEvent.upload finishes after the handler settles).
+    Object.defineProperty(input, 'files', {
+      configurable: true,
+      value: {
+        0: file,
+        length: 1,
+        item: (i: number) => (i === 0 ? file : null),
+        [Symbol.iterator]: function* () {
+          yield file
+        },
+      },
+    })
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+
+    await waitFor(() => {
+      expect(ensureSubmissionId).toHaveBeenCalledTimes(1)
+    })
+
+    // Same as PhotoUpload's onChange reset — empties a live FileList.
+    input.value = ''
+    Object.defineProperty(input, 'files', {
+      configurable: true,
+      value: { 0: undefined, length: 0, item: () => null, [Symbol.iterator]: function* () {} },
+    })
+
+    await act(async () => {
+      resolveDraft('sub-created')
+    })
+
+    await waitFor(() => {
+      expect(uploadSubmissionPhoto).toHaveBeenCalledWith(
+        expect.objectContaining({
+          submissionId: 'sub-created',
+          photoKind: 'site',
+          file,
+        }),
+      )
+      expect(onChange).toHaveBeenCalledWith([uploaded])
+    })
   })
 })

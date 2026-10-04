@@ -4,6 +4,7 @@ import {
   buildComplianceRows,
   filterComplianceRows,
   isAssignedOnDate,
+  localDateISO,
   summarizeCompliance,
   submissionsForSiteDate,
 } from './dailyCompliance'
@@ -43,6 +44,53 @@ describe('isAssignedOnDate', () => {
         '2026-10-02',
       ),
     ).toBe(true)
+  })
+
+  it('drops Missing on the local unassign day even when UTC date rolled forward', () => {
+    // Local Oct 3 10:00 PM — in US timezones the UTC calendar day is Oct 4.
+    const unassignLocal = new Date(2026, 9, 3, 22, 0, 0)
+    const unassigned_at = unassignLocal.toISOString()
+    expect(localDateISO(unassignLocal)).toBe('2026-10-03')
+
+    expect(
+      isAssignedOnDate(
+        { assigned_at: '2026-09-01T12:00:00.000Z', unassigned_at },
+        '2026-10-03',
+      ),
+    ).toBe(false)
+    // Still expected / Missing on prior days they were assigned.
+    expect(
+      isAssignedOnDate(
+        { assigned_at: '2026-09-01T12:00:00.000Z', unassigned_at },
+        '2026-10-02',
+      ),
+    ).toBe(true)
+  })
+
+  it('buildComplianceRows omits soft-unassigned workers from today Missing', () => {
+    const unassignLocal = new Date(2026, 9, 3, 22, 0, 0)
+    const rows = buildComplianceRows({
+      siteId: 'site-1',
+      dateISO: '2026-10-03',
+      assignments: [
+        {
+          framer_id: 'f1',
+          assigned_at: '2026-09-01T00:00:00.000Z',
+          unassigned_at: unassignLocal.toISOString(),
+          framer: { id: 'f1', display_name: 'Removed Today' },
+        },
+        {
+          framer_id: 'f2',
+          assigned_at: '2026-09-01T00:00:00.000Z',
+          unassigned_at: null,
+          framer: { id: 'f2', display_name: 'Still Assigned' },
+        },
+      ],
+      submissions: [],
+    })
+
+    expect(rows.map((r) => r.framerId)).toEqual(['f2'])
+    expect(summarizeCompliance(rows).missing).toBe(1)
   })
 })
 

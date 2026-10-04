@@ -114,6 +114,10 @@ export function PhotoUpload({
 
   async function onFilesSelected(fileList: FileList | null) {
     if (!fileList?.length || disabled || attachBlocked) return
+    // Snapshot immediately: FileList is live. Clearing the input (so the same
+    // file can be re-picked) empties it. Any await before Array.from — e.g.
+    // ensureSubmissionId on first site-photo attach — then uploads nothing.
+    const files = Array.from(fileList)
     setError(null)
     setBusy(true)
 
@@ -133,7 +137,7 @@ export function PhotoUpload({
     }
 
     let next = [...photosRef.current]
-    for (const file of Array.from(fileList)) {
+    for (const file of files) {
       const localError = validatePhotoFile(file)
       if (localError) {
         setError(localError)

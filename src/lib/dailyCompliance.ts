@@ -59,19 +59,28 @@ export function shiftDateISO(iso: string, deltaDays: number): string {
   return localDateISO(dt)
 }
 
+/** Local YYYY-MM-DD for timestamptz; plain dates kept as-is (no UTC shift). */
+function toLocalCalendarDay(iso: string): string {
+  const trimmed = iso.trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed
+  return localDateISO(new Date(trimmed))
+}
+
 /**
  * Assignment active on calendar date D (local):
- * assigned_at date <= D AND (unassigned_at is null OR unassigned_at date > D).
- * Unassign on D means still assigned that day (history inclusive start).
+ * assigned_at local day <= D AND (unassigned_at is null OR unassigned local day > D).
+ * Exclusive end: soft-unassign on D drops them from Missing on D and after.
+ * Use local calendar days (not UTC YYYY-MM-DD slice) so evening unassigns in
+ * western timezones do not stay "assigned" until UTC midnight.
  */
 export function isAssignedOnDate(
   assignment: Pick<SiteAssignment, 'assigned_at' | 'unassigned_at'>,
   dateISO: string,
 ): boolean {
-  const assignedDay = assignment.assigned_at.slice(0, 10)
+  const assignedDay = toLocalCalendarDay(assignment.assigned_at)
   if (assignedDay > dateISO) return false
   if (!assignment.unassigned_at) return true
-  const unDay = assignment.unassigned_at.slice(0, 10)
+  const unDay = toLocalCalendarDay(assignment.unassigned_at)
   return unDay > dateISO
 }
 
