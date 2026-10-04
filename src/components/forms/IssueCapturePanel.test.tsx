@@ -1,7 +1,15 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { IssueDraft } from '../../lib/safetyIssueKeys'
-import { IssueCapturePanel } from './IssueCapturePanel'
+import { IssueCapturePanel, type IssuePhotoUploadProps } from './IssueCapturePanel'
+
+vi.mock('./PhotoUpload', () => ({
+  PhotoUpload: (props: { photoKind?: string; triggerLabel?: string }) => (
+    <div data-testid={`photo-upload-${props.photoKind ?? 'site'}`}>
+      {props.triggerLabel}
+    </div>
+  ),
+}))
 
 function draft(key: IssueDraft['checklist_item_key'], label: string): IssueDraft {
   return {
@@ -10,19 +18,28 @@ function draft(key: IssueDraft['checklist_item_key'], label: string): IssueDraft
     description: '',
     severity: null,
     immediate_action: '',
-    pendingPhoto: null,
   }
 }
 
+const photoUpload: IssuePhotoUploadProps = {
+  userId: 'u1',
+  submissionId: 's1',
+  photos: [],
+  onChange: vi.fn(),
+}
+
 describe('IssueCapturePanel', () => {
-  it('shows optional issue photo for checklist No capture', () => {
+  it('shows PhotoUpload issue control for checklist No capture', () => {
     render(
       <IssueCapturePanel
         draft={draft('ppe.hardHat', 'Hard hat worn')}
         onChange={vi.fn()}
+        photoUpload={photoUpload}
       />,
     )
     expect(screen.getByTestId('issue-photo-ppe.hardHat')).toBeInTheDocument()
+    expect(screen.getByTestId('photo-upload-issue')).toBeInTheDocument()
+    expect(screen.getByText('Add issue photo')).toBeInTheDocument()
     expect(screen.getByTestId('issue-capture-ppe.hardHat')).toHaveAttribute(
       'data-show-issue-photo',
       'true',
@@ -34,6 +51,7 @@ describe('IssueCapturePanel', () => {
       <IssueCapturePanel
         draft={draft('hazards', 'Hazard observed')}
         onChange={vi.fn()}
+        photoUpload={photoUpload}
       />,
     )
     expect(screen.queryByTestId('issue-photo-hazards')).not.toBeInTheDocument()
@@ -46,6 +64,7 @@ describe('IssueCapturePanel', () => {
       <IssueCapturePanel
         draft={draft('incidentOrNearMiss', 'Incident / near miss')}
         onChange={vi.fn()}
+        photoUpload={photoUpload}
       />,
     )
     expect(

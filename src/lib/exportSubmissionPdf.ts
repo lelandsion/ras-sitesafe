@@ -444,9 +444,11 @@ export async function exportSubmissionToPdf(input: SubmissionPdfInput): Promise<
 
   const sitePhotos = photos.filter((p) => (p.photo_kind ?? 'site') === 'site')
   const hazardPhotos = photos.filter((p) => p.photo_kind === 'hazard')
+  const issuePhotos = photos.filter((p) => p.photo_kind === 'issue')
 
   const siteImages: LoadedImage[] = []
   const hazardImages: LoadedImage[] = []
+  const issueImages: LoadedImage[] = []
 
   for (const photo of sitePhotos) {
     const loaded = await loadImageDataUrl(photo)
@@ -455,6 +457,10 @@ export async function exportSubmissionToPdf(input: SubmissionPdfInput): Promise<
   for (const photo of hazardPhotos) {
     const loaded = await loadImageDataUrl(photo)
     if (loaded) hazardImages.push(loaded)
+  }
+  for (const photo of issuePhotos) {
+    const loaded = await loadImageDataUrl(photo)
+    if (loaded) issueImages.push(loaded)
   }
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
@@ -492,16 +498,16 @@ export async function exportSubmissionToPdf(input: SubmissionPdfInput): Promise<
 
   y = appendPhotoSection(doc, y, SUBMISSION_PHOTO_KIND_LABELS.site, siteImages)
   y = appendPhotoSection(doc, y, SUBMISSION_PHOTO_KIND_LABELS.hazard, hazardImages)
+  y = appendPhotoSection(doc, y, SUBMISSION_PHOTO_KIND_LABELS.issue, issueImages)
 
-  if (
-    sitePhotos.length + hazardPhotos.length > 0 &&
-    siteImages.length + hazardImages.length === 0
-  ) {
+  const photoTotal = sitePhotos.length + hazardPhotos.length + issuePhotos.length
+  const imageTotal = siteImages.length + hazardImages.length + issueImages.length
+  if (photoTotal > 0 && imageTotal === 0) {
     y = ensureSpace(doc, y, 10)
     doc.setFontSize(9)
     doc.setTextColor(...MUTED)
     doc.text(
-      `${sitePhotos.length + hazardPhotos.length} photo(s) on file (could not embed — open SiteSafe preview).`,
+      `${photoTotal} photo(s) on file (could not embed — open SiteSafe preview).`,
       MARGIN,
       y,
     )

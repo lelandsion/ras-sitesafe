@@ -34,7 +34,9 @@ import {
 } from '../../lib/submissionPersist'
 import {
   collectIssueDraftErrors,
+  issuePhotoCaptureAllowed,
   reconcileIssueDrafts,
+  requiredIssueSpecs,
   type IssueDraft,
 } from '../../lib/safetyIssueKeys'
 import { listAssignedSites } from '../../services/sitesService'
@@ -215,7 +217,6 @@ export function SafetyFormPage({
               description: issue.description,
               severity: issue.severity,
               immediate_action: issue.immediate_action,
-              pendingPhoto: null,
             }
           }
           setIssueDrafts(reconcileIssueDrafts(parsed, fromDb))
@@ -296,6 +297,17 @@ export function SafetyFormPage({
     () => photos.filter((p) => p.photo_kind === 'hazard'),
     [photos],
   )
+  const issuePhotos = useMemo(
+    () => photos.filter((p) => p.photo_kind === 'issue'),
+    [photos],
+  )
+  /** One shared issue PhotoUpload — first open checklist-No panel hosts it. */
+  const issuePhotoHostKey = useMemo(() => {
+    for (const spec of requiredIssueSpecs(checklist)) {
+      if (issuePhotoCaptureAllowed(spec.key)) return spec.key
+    }
+    return null
+  }, [checklist])
 
   function clearFieldError(field: string) {
     setFieldErrors((prev) => {
@@ -448,17 +460,11 @@ export function SafetyFormPage({
       setStatus('draft')
     }
 
-    // Clear pending local files after successful sync.
-    setIssueDrafts((prev) => {
-      const cleared: Record<string, IssueDraft> = {}
-      for (const [k, d] of Object.entries(prev)) {
-        cleared[k] = { ...d, pendingPhoto: null }
-      }
-      return cleared
-    })
-
     const refreshed = await listIssuesForSubmission(targetId)
     if (!refreshed.error) setSavedIssues(refreshed.data)
+
+    const photoResult = await listSubmissionPhotos(targetId)
+    if (!photoResult.error) setPhotos(photoResult.data)
 
     setSaving(false)
     setPersistMode(null)
@@ -571,6 +577,24 @@ export function SafetyFormPage({
 
   const photoAttachHint =
     !siteId && editable ? 'Select a jobsite first.' : null
+
+  const issuePhotoUploadBase =
+    user && editable
+      ? {
+          userId: user.id,
+          submissionId,
+          ensureSubmissionId,
+          photos: issuePhotos,
+          onChange: (next: SubmissionPhoto[]) =>
+            setPhotosForKind('issue', next),
+          blockedHint: photoAttachHint,
+        }
+      : null
+
+  function issuePhotoUploadFor(key: string) {
+    if (!issuePhotoUploadBase || issuePhotoHostKey !== key) return null
+    return issuePhotoUploadBase
+  }
 
   if (loading) {
     return (
@@ -761,6 +785,7 @@ export function SafetyFormPage({
                     clearFieldError('issue.ppe.hardHat.immediate_action')
                   }}
                   errors={issueFieldErrors('ppe.hardHat')}
+                  photoUpload={issuePhotoUploadFor('ppe.hardHat')}
                 />
               )}
               <TriStateField
@@ -788,6 +813,7 @@ export function SafetyFormPage({
                     clearFieldError('issue.ppe.highVis.immediate_action')
                   }}
                   errors={issueFieldErrors('ppe.highVis')}
+                  photoUpload={issuePhotoUploadFor('ppe.highVis')}
                 />
               )}
               <TriStateField
@@ -815,6 +841,7 @@ export function SafetyFormPage({
                     clearFieldError('issue.ppe.footwear.immediate_action')
                   }}
                   errors={issueFieldErrors('ppe.footwear')}
+                  photoUpload={issuePhotoUploadFor('ppe.footwear')}
                 />
               )}
               <TriStateField
@@ -845,6 +872,7 @@ export function SafetyFormPage({
                     clearFieldError('issue.ppe.eyeProtection.immediate_action')
                   }}
                   errors={issueFieldErrors('ppe.eyeProtection')}
+                  photoUpload={issuePhotoUploadFor('ppe.eyeProtection')}
                 />
               )}
             </section>
@@ -881,6 +909,7 @@ export function SafetyFormPage({
                     clearFieldError('issue.fallProtection.edgesProtected.immediate_action')
                   }}
                   errors={issueFieldErrors('fallProtection.edgesProtected')}
+                  photoUpload={issuePhotoUploadFor('fallProtection.edgesProtected')}
                 />
               )}
               <TriStateField
@@ -911,6 +940,7 @@ export function SafetyFormPage({
                     clearFieldError('issue.fallProtection.fpInUse.immediate_action')
                   }}
                   errors={issueFieldErrors('fallProtection.fpInUse')}
+                  photoUpload={issuePhotoUploadFor('fallProtection.fpInUse')}
                 />
               )}
               <TriStateField
@@ -941,6 +971,7 @@ export function SafetyFormPage({
                     clearFieldError('issue.fallProtection.ladders.immediate_action')
                   }}
                   errors={issueFieldErrors('fallProtection.ladders')}
+                  photoUpload={issuePhotoUploadFor('fallProtection.ladders')}
                 />
               )}
             </section>
@@ -980,6 +1011,7 @@ export function SafetyFormPage({
                     clearFieldError('issue.toolsAndWorkArea.toolsCondition.immediate_action')
                   }}
                   errors={issueFieldErrors('toolsAndWorkArea.toolsCondition')}
+                  photoUpload={issuePhotoUploadFor('toolsAndWorkArea.toolsCondition')}
                 />
               )}
               <TriStateField
@@ -1013,6 +1045,7 @@ export function SafetyFormPage({
                     clearFieldError('issue.toolsAndWorkArea.workAreaClear.immediate_action')
                   }}
                   errors={issueFieldErrors('toolsAndWorkArea.workAreaClear')}
+                  photoUpload={issuePhotoUploadFor('toolsAndWorkArea.workAreaClear')}
                 />
               )}
               <TriStateField
@@ -1046,6 +1079,7 @@ export function SafetyFormPage({
                     clearFieldError('issue.toolsAndWorkArea.housekeeping.immediate_action')
                   }}
                   errors={issueFieldErrors('toolsAndWorkArea.housekeeping')}
+                  photoUpload={issuePhotoUploadFor('toolsAndWorkArea.housekeeping')}
                 />
               )}
             </section>

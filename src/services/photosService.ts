@@ -128,7 +128,7 @@ export async function listSubmissionPhotos(
     >,
   )
   // Without photo_kind, treat legacy rows as site photos (general).
-  if (options?.kind === 'hazard') {
+  if (options?.kind === 'hazard' || options?.kind === 'issue') {
     rows = []
   }
   return { data: rows, error: null }
@@ -190,13 +190,15 @@ export async function uploadSubmissionPhoto(params: {
   }
 
   if (error && isMissingPhotoKindColumn(error.message)) {
-    // Allow general site uploads before Part 5; hazard kind needs the column.
-    if (photoKind === 'hazard') {
+    // Allow general site uploads before Part 5; typed kinds need the column.
+    if (photoKind === 'hazard' || photoKind === 'issue') {
       await supabase.storage.from(PHOTO_BUCKET).remove([storagePath])
       return {
         data: null,
         error:
-          'Hazard photo upload is temporarily unavailable. Try again later or contact your admin.',
+          photoKind === 'issue'
+            ? 'Issue photo upload is temporarily unavailable. Try again later or contact your admin.'
+            : 'Hazard photo upload is temporarily unavailable. Try again later or contact your admin.',
       }
     }
 

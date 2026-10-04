@@ -4,6 +4,17 @@ import {
   type IssueDraft,
 } from '../../lib/safetyIssueKeys'
 import type { IssueSeverity } from '../../types/correctiveActions'
+import type { SubmissionPhoto } from '../../types/database'
+import { PhotoUpload } from './PhotoUpload'
+
+export type IssuePhotoUploadProps = {
+  userId: string
+  submissionId: string | null
+  ensureSubmissionId?: () => Promise<string | null>
+  photos: SubmissionPhoto[]
+  onChange: (photos: SubmissionPhoto[]) => void
+  blockedHint?: string | null
+}
 
 type Props = {
   draft: IssueDraft
@@ -13,6 +24,8 @@ type Props = {
   errors?: Partial<
     Record<'description' | 'severity' | 'immediate_action', string>
   >
+  /** Same PhotoUpload control as site/hazard — checklist No only. */
+  photoUpload?: IssuePhotoUploadProps | null
 }
 
 const SEVERITIES: IssueSeverity[] = ['low', 'medium', 'high']
@@ -22,6 +35,7 @@ export function IssueCapturePanel({
   disabled,
   onChange,
   errors,
+  photoUpload,
 }: Props) {
   const showIssuePhoto = issuePhotoCaptureAllowed(draft.checklist_item_key)
 
@@ -107,28 +121,25 @@ export function IssueCapturePanel({
           )}
         </label>
 
-        {showIssuePhoto && (
-          <label
-            className="safety-form__field"
+        {showIssuePhoto && photoUpload && (
+          <div
+            className="issue-capture__photo"
             data-testid={`issue-photo-${draft.checklist_item_key}`}
           >
-            <span>Issue photo (optional)</span>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="safety-form__control issue-capture__file-input"
+            <PhotoUpload
+              userId={photoUpload.userId}
+              submissionId={photoUpload.submissionId}
+              ensureSubmissionId={photoUpload.ensureSubmissionId}
+              photos={photoUpload.photos}
+              onChange={photoUpload.onChange}
               disabled={disabled}
-              onChange={(e) => {
-                const file = e.target.files?.[0] ?? null
-                onChange({ ...draft, pendingPhoto: file })
-              }}
+              blockedHint={photoUpload.blockedHint}
+              title="Issue photo (optional)"
+              showTitle
+              triggerLabel="Add issue photo"
+              photoKind="issue"
             />
-            {draft.pendingPhoto && (
-              <span className="issue-capture__file">
-                {draft.pendingPhoto.name}
-              </span>
-            )}
-          </label>
+          </div>
         )}
       </div>
     </div>

@@ -186,7 +186,11 @@ export function PhotoUpload({
         {showTitle ? <h3 className="photo-upload__title">{title}</h3> : null}
         <p className="photo-upload__hint">
           JPEG, PNG, or WebP · max {maxMb} MB each
-          {photoKind === 'site' ? ' · not tied to a hazard' : ''}
+          {photoKind === 'site'
+            ? ' · not tied to a hazard'
+            : photoKind === 'issue'
+              ? ' · optional for checklist No'
+              : ''}
         </p>
       </div>
 

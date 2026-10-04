@@ -104,8 +104,6 @@ export type IssueDraft = {
   description: string
   severity: IssueSeverity | null
   immediate_action: string
-  /** Optional local file for checklist-failure issue photos only. */
-  pendingPhoto?: File | null
 }
 
 export type IssueFieldError = {
@@ -120,7 +118,6 @@ export function emptyIssueDraft(spec: IssueFieldSpec): IssueDraft {
     description: spec.defaultDescription?.trim() ?? '',
     severity: spec.defaultSeverity ?? null,
     immediate_action: '',
-    pendingPhoto: null,
   }
 }
 
@@ -141,7 +138,6 @@ export function reconcileIssueDrafts(
         description: fromChecklist || prev.description,
         severity:
           spec.defaultSeverity ?? prev.severity ?? null,
-        pendingPhoto: prev.pendingPhoto ?? null,
       }
     } else {
       next[spec.key] = emptyIssueDraft(spec)

@@ -265,6 +265,10 @@ export function SubmissionReportView({
         title={SUBMISSION_PHOTO_KIND_LABELS.hazard}
         photos={byKind('hazard')}
       />
+      <ReportPhotoGrid
+        title={SUBMISSION_PHOTO_KIND_LABELS.issue}
+        photos={byKind('issue')}
+      />
     </article>
   )
 }

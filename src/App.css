@@ -3154,16 +3154,12 @@ a.admin-metrics__item--link:focus-visible {
   margin: 0;
 }
 
-.issue-capture__file-input {
-  max-width: 100%;
+.issue-capture__photo {
+  margin-top: 0.15rem;
 }
 
-.issue-capture__file {
-  display: block;
-  margin-top: 0.35rem;
-  font-size: 0.85rem;
-  color: var(--ras-muted);
-  overflow-wrap: anywhere;
+.issue-capture__photo .photo-upload {
+  padding: 0.75rem;
 }
 
 .field-error {

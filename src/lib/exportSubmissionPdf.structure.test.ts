@@ -107,6 +107,15 @@ describe('exportSubmissionToPdf structure', () => {
           photo_kind: 'hazard',
           created_at: '2026-10-02T12:31:00.000Z',
         },
+        {
+          id: 'p3',
+          submission_id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+          storage_path: 'u1/sub/issue.jpg',
+          content_type: 'image/jpeg',
+          byte_size: 1100,
+          photo_kind: 'issue',
+          created_at: '2026-10-02T12:32:00.000Z',
+        },
       ],
       adminSummaryLines: ['Compliance review pending'],
     })
@@ -123,7 +132,7 @@ describe('exportSubmissionToPdf structure', () => {
     expect(joined).toMatch(/Loose sheathing/)
     expect(joined).toMatch(/Additional notes|Crew briefed/)
     expect(joined).toMatch(/Site safety summary|Compliance review/)
-    expect(joined).toMatch(/2 photo\(s\) on file/)
+    expect(joined).toMatch(/3 photo\(s\) on file/)
     expect(joined).toMatch(/Confidential jobsite record|Page 1/)
     expect(saveMock).toHaveBeenCalledWith(
       expect.stringMatching(/^ras-sitesafe-daily-check-bear-mountain/),
