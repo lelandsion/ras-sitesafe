@@ -1,3 +1,4 @@
+import { checkDateForSubmission } from './filterSubmissions'
 import type { SubmissionStatus, SubmissionWithDetails } from '../types/database'
 
 /**
@@ -63,17 +64,39 @@ function attentionDateMs(item: Pick<SubmissionWithDetails, 'updated_at' | 'creat
   return Number.isFinite(ms) ? ms : 0
 }
 
+/** Prefer checklist checkDate (YYYY-MM-DD) for admin list ordering; fallback updated_at. */
+function adminListDateMs(
+  item: Pick<SubmissionWithDetails, 'status' | 'updated_at' | 'created_at' | 'checklist'>,
+): number {
+  if ('checklist' in item || item.created_at) {
+    try {
+      const day = checkDateForSubmission(item as SubmissionWithDetails)
+      // Sort calendar days as UTC midnight so newer check dates win.
+      const ms = Date.parse(`${day}T00:00:00.000Z`)
+      if (Number.isFinite(ms)) return ms
+    } catch {
+      /* fall through */
+    }
+  }
+  return attentionDateMs(item)
+}
+
 /**
  * Sort for admin attention: under_review → submitted → approved → rejected,
- * newest-first within each status bucket. Drafts are not shown in admin lists.
+ * newest checkDate-first within each status bucket. Drafts are not shown in admin lists.
  */
 export function sortAdminSubmissions<
-  T extends Pick<SubmissionWithDetails, 'status' | 'updated_at' | 'created_at'>,
+  T extends Pick<
+    SubmissionWithDetails,
+    'status' | 'updated_at' | 'created_at' | 'checklist'
+  >,
 >(items: T[]): T[] {
   return [...items].sort((a, b) => {
     const rankA = ADMIN_STATUS_RANK[a.status] ?? 99
     const rankB = ADMIN_STATUS_RANK[b.status] ?? 99
     if (rankA !== rankB) return rankA - rankB
+    const byCheck = adminListDateMs(b) - adminListDateMs(a)
+    if (byCheck !== 0) return byCheck
     return attentionDateMs(b) - attentionDateMs(a)
   })
 }

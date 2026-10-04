@@ -11,8 +11,12 @@ import {
 } from './periodStats'
 import { listSubmissionPhotos } from '../services/photosService'
 import { listIssuesForSubmission } from '../services/safetyIssuesService'
-import { listSiteAssignments } from '../services/sitesService'
+import {
+  canGenerateSiteReport,
+  listSiteAssignments,
+} from '../services/sitesService'
 import { listAdminSubmissions } from '../services/submissionsService'
+import type { UserRole } from '../types/database'
 import { parseDailySafetyChecklist } from '../types/safetyChecklist'
 import type {
   ReportAppendixIssue,
@@ -51,6 +55,8 @@ export async function buildPeriodReportSummary(params: {
   options: ReportIncludeOptions
   /** When true and period has zero rows, fill demo stats for UX review. */
   allowDemoFallback?: boolean
+  /** Caller role — non-admins must be assigned to `siteId`. */
+  role?: UserRole | null
 }): Promise<{
   summary: SavedReportSummary
   rows: ChecklistSubmissionRow[]
@@ -61,6 +67,14 @@ export async function buildPeriodReportSummary(params: {
   const fromDate = normalizeCalendarDate(params.fromDate ?? bounds.fromDate)
   const toDate = normalizeCalendarDate(params.toDate ?? bounds.toDate)
   const { siteId, options } = params
+
+  const access = await canGenerateSiteReport({
+    siteId,
+    role: params.role ?? null,
+  })
+  if (!access.ok) {
+    throw new Error(access.error)
+  }
 
   const { data: all, error } = await listAdminSubmissions()
   if (error) {

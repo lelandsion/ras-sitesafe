@@ -359,12 +359,15 @@ export function SafetyFormPage({
     setFieldErrors({})
     setSubmitMessages([])
 
-    // Hard-code status from intent so draft save cannot accidentally submit.
-    const payload = {
+    // Persist checklist content as draft first. Issue sync uses UPDATE/DELETE RLS
+    // that only allows framers while the parent submission is still `draft`.
+    // Flipping to `submitted` before sync causes:
+    // "new row violates row-level security policy (USING expression) for table safety_issues".
+    const contentPayload = {
       site_id: siteId,
       notes: notes.trim() || null,
       checklist: serializeChecklist(checklist),
-      status: nextStatus,
+      status: 'draft' as const,
     }
 
     const draftsToSync = reconcileIssueDrafts(checklist, issueDrafts)
@@ -374,8 +377,7 @@ export function SafetyFormPage({
     if (!targetId) {
       const { data, error: createError } = await createSubmission({
         submitted_by: user.id,
-        ...payload,
-        status: nextStatus,
+        ...contentPayload,
       })
       if (createError || !data) {
         setError(createError ?? 'Could not save submission.')
@@ -386,12 +388,9 @@ export function SafetyFormPage({
       targetId = data.id
       submissionIdRef.current = data.id
       setSubmissionId(data.id)
-      // Trust intent, not a stale/mis-mapped row — draft save must stay draft.
-      setStatus(nextStatus)
     } else {
       const { data, error: updateError } = await updateSubmission(targetId, {
-        ...payload,
-        status: nextStatus,
+        ...contentPayload,
       })
       if (updateError || !data) {
         setError(updateError ?? 'Could not update submission.')
@@ -399,11 +398,10 @@ export function SafetyFormPage({
         setPersistMode(null)
         return
       }
-      setStatus(nextStatus)
     }
 
-    // Submit: sync all issues (validated). Draft: upsert only complete rows,
-    // never prune — incomplete capture stays local until Submit.
+    // Submit: sync all issues (validated) while still draft. Draft save: upsert
+    // only complete rows, never prune — incomplete capture stays local until Submit.
     const draftsForSync =
       intent === 'submit'
         ? draftsToSync
@@ -431,6 +429,23 @@ export function SafetyFormPage({
         setPersistMode(null)
         return
       }
+    }
+
+    // Now apply the intended status (draft stays draft; submit → submitted).
+    if (intent === 'submit') {
+      const { data, error: submitError } = await updateSubmission(targetId, {
+        ...contentPayload,
+        status: nextStatus,
+      })
+      if (submitError || !data) {
+        setError(submitError ?? 'Could not submit safety check.')
+        setSaving(false)
+        setPersistMode(null)
+        return
+      }
+      setStatus(nextStatus)
+    } else {
+      setStatus('draft')
     }
 
     // Clear pending local files after successful sync.

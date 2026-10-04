@@ -222,30 +222,92 @@ export async function syncSafetyIssuesForSubmission(params: {
     return { error: null }
   }
 
-  const rows = keys.map((key) => {
+  // Prefer insert + update over upsert. PostgREST upsert uses ON CONFLICT DO UPDATE,
+  // which hits the draft-only UPDATE RLS policy (USING) even for brand-new keys when
+  // the parent submission is no longer draft — exact framer error Leland hit.
+  const existingByKey = new Map(
+    existingRows.map((r) => [r.checklist_item_key, r.id] as const),
+  )
+  const toInsert: Array<{
+    submission_id: string
+    checklist_item_key: string
+    item_label: string
+    description: string
+    severity: NonNullable<IssueDraft['severity']>
+    immediate_action: string
+    created_by: string
+  }> = []
+  const toUpdate: Array<{
+    id: string
+    checklist_item_key: string
+    item_label: string
+    description: string
+    severity: NonNullable<IssueDraft['severity']>
+    immediate_action: string
+  }> = []
+
+  for (const key of keys) {
     const d = drafts[key]
-    return {
-      submission_id: submissionId,
+    const base = {
       checklist_item_key: d.checklist_item_key,
       item_label: d.item_label,
       description: d.description.trim(),
       severity: d.severity!,
       immediate_action: d.immediate_action.trim(),
-      created_by: createdBy,
     }
-  })
+    const existingId = existingByKey.get(key)
+    if (existingId) {
+      toUpdate.push({ id: existingId, ...base })
+    } else {
+      toInsert.push({
+        submission_id: submissionId,
+        created_by: createdBy,
+        ...base,
+      })
+    }
+  }
 
-  const { data: upserted, error: upsertError } = await supabase
-    .from('safety_issues')
-    .upsert(rows, { onConflict: 'submission_id,checklist_item_key' })
-    .select('id, checklist_item_key')
+  const upserted: { id: string; checklist_item_key: string }[] = []
 
-  if (upsertError) {
-    return { error: humanizeDbError(upsertError.message) }
+  if (toInsert.length > 0) {
+    const { data, error: insertError } = await supabase
+      .from('safety_issues')
+      .insert(toInsert)
+      .select('id, checklist_item_key')
+    if (insertError) {
+      return { error: humanizeDbError(insertError.message) }
+    }
+    upserted.push(...(data ?? []))
+  }
+
+  for (const row of toUpdate) {
+    const { data, error: updateError } = await supabase
+      .from('safety_issues')
+      .update({
+        item_label: row.item_label,
+        description: row.description,
+        severity: row.severity,
+        immediate_action: row.immediate_action,
+      })
+      .eq('id', row.id)
+      .select('id, checklist_item_key')
+      .maybeSingle()
+    if (updateError) {
+      return { error: humanizeDbError(updateError.message) }
+    }
+    if (data) {
+      upserted.push(data)
+    } else {
+      // 0 rows: RLS blocked update (parent not draft). Surface clearly.
+      return {
+        error:
+          'Could not update safety issues on this submission. Save as draft first, or ask an admin.',
+      }
+    }
   }
 
   // Optional pending photos — checklist failures only (photo_kind: issue).
-  for (const row of upserted ?? []) {
+  for (const row of upserted) {
     const draft = drafts[row.checklist_item_key]
     if (!draft || !issuePhotoCaptureAllowed(draft.checklist_item_key)) continue
     const file = draft.pendingPhoto

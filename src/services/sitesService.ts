@@ -4,6 +4,7 @@ import type {
   Site,
   SiteAssignmentWithFramer,
   SiteWithAssignmentCount,
+  UserRole,
 } from '../types/database'
 
 export type SiteUpsertInput = {
@@ -53,6 +54,33 @@ export async function listAssignedSites(): Promise<{
   }
 
   return { data: (data ?? []) as Site[], error: null }
+}
+
+/**
+ * Site-period reports: admins may use any site; framers (and other non-admins)
+ * only sites returned by assignment-scoped RLS (`listAssignedSites`).
+ */
+export async function canGenerateSiteReport(params: {
+  siteId: string
+  role: UserRole | null | undefined
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!params.siteId) {
+    return { ok: false, error: 'Select a jobsite for the report.' }
+  }
+  if (params.role === 'admin') {
+    return { ok: true }
+  }
+  const { data, error } = await listAssignedSites()
+  if (error) {
+    return { ok: false, error }
+  }
+  if (!data.some((s) => s.id === params.siteId)) {
+    return {
+      ok: false,
+      error: 'You are not assigned to that jobsite, so you cannot generate its report.',
+    }
+  }
+  return { ok: true }
 }
 
 /**

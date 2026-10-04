@@ -50,19 +50,28 @@ describe('sortAdminSubmissions', () => {
     id: string,
     status: SubmissionStatus,
     updated_at: string,
+    checkDate?: string,
   ) {
-    return { id, status, updated_at, created_at: updated_at }
+    return {
+      id,
+      status,
+      updated_at,
+      created_at: updated_at,
+      checklist: checkDate
+        ? { schemaVersion: 1, reportType: 'daily_safety_check', checkDate }
+        : null,
+    }
   }
 
-  it('orders by attention status then newest-first within a bucket', () => {
+  it('orders by attention status then newest checkDate within a bucket', () => {
     const sorted = sortAdminSubmissions([
-      item('old-approved', 'approved', '2026-10-03T10:00:00.000Z'),
-      item('new-submitted', 'submitted', '2026-10-03T18:00:00.000Z'),
-      item('old-review', 'under_review', '2026-10-03T08:00:00.000Z'),
-      item('rejected', 'rejected', '2026-10-03T20:00:00.000Z'),
-      item('old-submitted', 'submitted', '2026-10-03T09:00:00.000Z'),
-      item('new-review', 'under_review', '2026-10-03T19:00:00.000Z'),
-      item('draft', 'draft', '2026-10-03T17:00:00.000Z'),
+      item('old-approved', 'approved', '2026-10-03T10:00:00.000Z', '2026-10-01'),
+      item('new-submitted', 'submitted', '2026-10-03T18:00:00.000Z', '2026-10-03'),
+      item('old-review', 'under_review', '2026-10-03T08:00:00.000Z', '2026-10-01'),
+      item('rejected', 'rejected', '2026-10-03T20:00:00.000Z', '2026-10-02'),
+      item('old-submitted', 'submitted', '2026-10-03T09:00:00.000Z', '2026-10-02'),
+      item('new-review', 'under_review', '2026-10-03T19:00:00.000Z', '2026-10-03'),
+      item('draft', 'draft', '2026-10-03T17:00:00.000Z', '2026-10-03'),
     ])
 
     expect(sorted.map((s) => s.id)).toEqual([
@@ -76,10 +85,21 @@ describe('sortAdminSubmissions', () => {
     ])
   })
 
+  it('prefers checklist checkDate over updated_at within a status bucket', () => {
+    const sorted = sortAdminSubmissions([
+      item('newer-touch-older-check', 'submitted', '2026-10-05T18:00:00.000Z', '2026-10-01'),
+      item('older-touch-newer-check', 'submitted', '2026-10-02T09:00:00.000Z', '2026-10-04'),
+    ])
+    expect(sorted.map((s) => s.id)).toEqual([
+      'older-touch-newer-check',
+      'newer-touch-older-check',
+    ])
+  })
+
   it('does not mutate the input array', () => {
     const input = [
-      item('a', 'approved', '2026-10-03T10:00:00.000Z'),
-      item('b', 'under_review', '2026-10-03T11:00:00.000Z'),
+      item('a', 'approved', '2026-10-03T10:00:00.000Z', '2026-10-01'),
+      item('b', 'under_review', '2026-10-03T11:00:00.000Z', '2026-10-02'),
     ]
     const copy = [...input]
     sortAdminSubmissions(input)

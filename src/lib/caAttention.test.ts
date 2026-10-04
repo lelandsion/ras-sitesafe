@@ -83,7 +83,7 @@ describe('caAttentionBadgeLabel', () => {
 })
 
 describe('sortSafetyIssuesByCaStatus', () => {
-  it('orders open → in_progress → ready_for_review → resolved → no CA, newest within bucket', () => {
+  it('orders open → in_progress → ready_for_review → no CA → resolved last, newest within bucket', () => {
     const sorted = sortSafetyIssuesByCaStatus([
       issue('resolved-new', 'resolved', '2026-10-03T20:00:00.000Z'),
       issue('ready-old', 'ready_for_review', '2026-10-01T12:00:00.000Z'),
@@ -100,8 +100,8 @@ describe('sortSafetyIssuesByCaStatus', () => {
       'in-prog',
       'ready-new',
       'ready-old',
-      'resolved-new',
       'no-ca',
+      'resolved-new',
     ])
   })
 

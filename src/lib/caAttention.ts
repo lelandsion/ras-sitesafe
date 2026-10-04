@@ -13,8 +13,9 @@ const CA_ISSUE_RANK: Record<string, number> = {
   open: 0,
   in_progress: 1,
   ready_for_review: 2,
-  resolved: 3,
-  none: 4,
+  none: 3,
+  // Resolved sinks to the bottom — still needs less attention than no-CA rows.
+  resolved: 4,
 }
 
 /**
@@ -59,8 +60,8 @@ function issueDateMs(issue: Pick<SafetyIssueWithDetails, 'created_at'>): number 
 }
 
 /**
- * Admin Safety Issues list: open → in_progress → ready_for_review → resolved,
- * then no-CA / other last. Newest-first within each bucket.
+ * Admin Safety Issues list: open → in_progress → ready_for_review → no CA →
+ * resolved (last). Newest-first within each bucket.
  */
 export function sortSafetyIssuesByCaStatus<T extends SafetyIssueWithDetails>(
   items: T[],

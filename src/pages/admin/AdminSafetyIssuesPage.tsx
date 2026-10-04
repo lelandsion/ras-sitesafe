@@ -84,7 +84,7 @@ export function AdminSafetyIssuesPage() {
 
   const visibleItems = useMemo(() => {
     const filtered = items.filter((i) => matchesStatusFilter(i, statusFilter))
-    // open → in_progress → ready_for_review → resolved → no CA; newest within bucket.
+    // open → in_progress → ready_for_review → no CA → resolved last; newest within bucket.
     return sortSafetyIssuesByCaStatus(filtered)
   }, [items, statusFilter])
 

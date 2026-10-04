@@ -8,7 +8,10 @@ import { useAuth } from '../../hooks/auth-context'
 import { buildPeriodReportSummary } from '../../lib/buildPeriodReport'
 import { exportPeriodReportPdf } from '../../lib/exportPeriodReportPdf'
 import { defaultPeriodRange, monthBounds } from '../../lib/periodStats'
-import { listAdminSites } from '../../services/sitesService'
+import {
+  canGenerateSiteReport,
+  listAdminSites,
+} from '../../services/sitesService'
 import { listAdminSubmissions } from '../../services/submissionsService'
 import { checkDateForSubmission } from '../../lib/filterSubmissions'
 import {
@@ -47,7 +50,7 @@ function periodFromDates(fromDate: string, toDate: string): {
 }
 
 export function AdminReportsPage() {
-  const { user } = useAuth()
+  const { user, role } = useAuth()
   const defaults = useMemo(() => defaultPeriodRange(), [])
   const [sites, setSites] = useState<Site[]>([])
   const [saved, setSaved] = useState<SavedReport[]>([])
@@ -166,6 +169,12 @@ export function AdminReportsPage() {
       return
     }
 
+    const access = await canGenerateSiteReport({ siteId, role })
+    if (!access.ok) {
+      setError(access.error)
+      return
+    }
+
     const { year, month } = periodFromDates(fromDate, toDate)
 
     setGenerating(true)
@@ -182,6 +191,7 @@ export function AdminReportsPage() {
         toDate,
         options: includes,
         allowDemoFallback: true,
+        role,
       })
 
       const title = 'Monthly Safety Report'
