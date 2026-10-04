@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from 'react-router-dom'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -90,6 +95,7 @@ const STATUS_FILTER_OPTIONS: Array<SubmissionStatus | 'all'> = [
 
 export function AdminHomePage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const { profile, user, signOut } = useAuth()
   const [items, setItems] = useState<SubmissionWithDetails[]>([])
@@ -118,6 +124,18 @@ export function AdminHomePage() {
       return { ...prev, workerId }
     })
   }, [searchParams])
+
+  // Workers → Submissions deep link: filter is URL-driven; scroll after content mounts.
+  // location.key re-fires when navigating here again while already on /admin.
+  useEffect(() => {
+    if (loading || error) return
+    const wantsSubmissions =
+      location.hash === '#submissions' || Boolean(workerFromUrl)
+    if (!wantsSubmissions) return
+    const el = document.getElementById('submissions')
+    if (!el || typeof el.scrollIntoView !== 'function') return
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [loading, error, location.hash, location.key, workerFromUrl])
 
   function setWorkerFilter(workerId: string) {
     setFilters((f) => ({ ...f, workerId }))

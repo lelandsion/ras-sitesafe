@@ -74,6 +74,7 @@ describe('AdminHomePage Worker Submissions navigation', () => {
       sites: [],
       error: null,
     })
+    HTMLElement.prototype.scrollIntoView = vi.fn()
   })
 
   it('opens the form/review route, not preview, from row View / site link', async () => {
@@ -159,5 +160,37 @@ describe('AdminHomePage Worker Submissions navigation', () => {
     ).not.toBeInTheDocument()
     expect(screen.getByLabelText('Worker')).toHaveValue('framer-2')
     expect(screen.getByText(/Showing 1 of 2/i)).toBeInTheDocument()
+  })
+
+  it('scrolls Worker Submissions into view for ?worker=#submissions deep link', async () => {
+    listAdminSubmissions.mockResolvedValue({
+      data: [makeSubmission({ id: 'sub-a' })],
+      error: null,
+    })
+
+    render(
+      <AuthContext.Provider
+        value={makeAuthValue({
+          session: { access_token: 'tok' } as never,
+          profile: makeProfile('admin'),
+          role: 'admin',
+          loading: false,
+        })}
+      >
+        <MemoryRouter
+          initialEntries={['/admin?worker=framer-1#submissions']}
+        >
+          <AdminHomePage />
+        </MemoryRouter>
+      </AuthContext.Provider>,
+    )
+
+    await waitFor(() => {
+      expect(document.getElementById('submissions')).toBeTruthy()
+    })
+    await waitFor(() => {
+      expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
+    })
+    expect(screen.getByLabelText('Worker')).toHaveValue('framer-1')
   })
 })
