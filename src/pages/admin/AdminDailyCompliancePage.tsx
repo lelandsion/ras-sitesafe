@@ -313,15 +313,17 @@ export function AdminDailyCompliancePage() {
                       Messaging / reminders are not available yet.
                     </p>
                     <Link
-                      to="/admin/sites"
+                      to={`/admin?worker=${encodeURIComponent(selected.framerId)}#submissions`}
                       className="btn btn--ghost touch-target"
                     >
-                      View Worker
+                      View submissions
                     </Link>
-                    <p className="admin-table__note">
-                      Worker directory messaging comes later — use Sites →
-                      Assign workers for now.
-                    </p>
+                    <Link
+                      to="/admin/workers"
+                      className="btn btn--ghost touch-target"
+                    >
+                      Workers roster
+                    </Link>
                   </>
                 )}
                 {selected && selected.status !== 'not_submitted' && (

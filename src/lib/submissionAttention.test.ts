@@ -59,7 +59,7 @@ describe('sortAdminSubmissions', () => {
       created_at: updated_at,
       checklist: checkDate
         ? { schemaVersion: 1, reportType: 'daily_safety_check', checkDate }
-        : null,
+        : {},
     }
   }
 

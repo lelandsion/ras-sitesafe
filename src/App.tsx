@@ -8,6 +8,7 @@ import { AdminHomePage } from './pages/admin/AdminHomePage'
 import { AdminReportsPage } from './pages/admin/AdminReportsPage'
 import { AdminSafetyIssuesPage } from './pages/admin/AdminSafetyIssuesPage'
 import { AdminSitesPage } from './pages/admin/AdminSitesPage'
+import { AdminWorkersPage } from './pages/admin/AdminWorkersPage'
 import { SavedReportViewPage } from './pages/admin/SavedReportViewPage'
 import { FramerHomePage } from './pages/framer/FramerHomePage'
 import { SafetyFormPage } from './pages/framer/SafetyFormPage'
@@ -33,6 +34,7 @@ function App() {
             <Route path="/admin/reports" element={<AdminReportsPage />} />
             <Route path="/admin/reports/:id" element={<SavedReportViewPage />} />
             <Route path="/admin/sites" element={<AdminSitesPage />} />
+            <Route path="/admin/workers" element={<AdminWorkersPage />} />
             <Route
               path="/admin/sites/:siteId/compliance"
               element={<AdminDailyCompliancePage />}

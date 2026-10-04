@@ -66,17 +66,18 @@ function attentionDateMs(item: Pick<SubmissionWithDetails, 'updated_at' | 'creat
 
 /** Prefer checklist checkDate (YYYY-MM-DD) for admin list ordering; fallback updated_at. */
 function adminListDateMs(
-  item: Pick<SubmissionWithDetails, 'status' | 'updated_at' | 'created_at' | 'checklist'>,
+  item: Pick<
+    SubmissionWithDetails,
+    'id' | 'status' | 'updated_at' | 'created_at' | 'checklist'
+  >,
 ): number {
-  if ('checklist' in item || item.created_at) {
-    try {
-      const day = checkDateForSubmission(item as SubmissionWithDetails)
-      // Sort calendar days as UTC midnight so newer check dates win.
-      const ms = Date.parse(`${day}T00:00:00.000Z`)
-      if (Number.isFinite(ms)) return ms
-    } catch {
-      /* fall through */
-    }
+  try {
+    const day = checkDateForSubmission(item as SubmissionWithDetails)
+    // Sort calendar days as UTC midnight so newer check dates win.
+    const ms = Date.parse(`${day}T00:00:00.000Z`)
+    if (Number.isFinite(ms)) return ms
+  } catch {
+    /* fall through */
   }
   return attentionDateMs(item)
 }
@@ -88,7 +89,7 @@ function adminListDateMs(
 export function sortAdminSubmissions<
   T extends Pick<
     SubmissionWithDetails,
-    'status' | 'updated_at' | 'created_at' | 'checklist'
+    'id' | 'status' | 'updated_at' | 'created_at' | 'checklist'
   >,
 >(items: T[]): T[] {
   return [...items].sort((a, b) => {

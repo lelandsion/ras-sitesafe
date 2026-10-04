@@ -3845,6 +3845,12 @@ a.admin-metrics__item--link:focus-visible {
   border: 1px solid var(--ras-border);
 }
 
+.compliance-pill--n_a {
+  background: color-mix(in srgb, var(--ras-charcoal) 8%, white);
+  color: var(--ras-muted);
+  border: 1px solid var(--ras-border);
+}
+
 .admin-table__row--clickable {
   cursor: pointer;
 }

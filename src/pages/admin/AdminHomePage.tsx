@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -90,10 +90,14 @@ const STATUS_FILTER_OPTIONS: Array<SubmissionStatus | 'all'> = [
 
 export function AdminHomePage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { profile, user, signOut } = useAuth()
   const [items, setItems] = useState<SubmissionWithDetails[]>([])
-  const [filters, setFilters] = useState<SubmissionListFilters>(
-    EMPTY_SUBMISSION_FILTERS,
+  const workerFromUrl = searchParams.get('worker')?.trim() ?? ''
+  const [filters, setFilters] = useState<SubmissionListFilters>(() =>
+    workerFromUrl
+      ? { ...EMPTY_SUBMISSION_FILTERS, workerId: workerFromUrl }
+      : EMPTY_SUBMISSION_FILTERS,
   )
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -106,6 +110,39 @@ export function AdminHomePage() {
     issues: 0,
   })
   const [todaySites, setTodaySites] = useState<SiteComplianceOverview[]>([])
+
+  useEffect(() => {
+    const workerId = searchParams.get('worker')?.trim() ?? ''
+    setFilters((prev) => {
+      if (prev.workerId === workerId) return prev
+      return { ...prev, workerId }
+    })
+  }, [searchParams])
+
+  function setWorkerFilter(workerId: string) {
+    setFilters((f) => ({ ...f, workerId }))
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (workerId) next.set('worker', workerId)
+        else next.delete('worker')
+        return next
+      },
+      { replace: true },
+    )
+  }
+
+  function clearFilters() {
+    setFilters(EMPTY_SUBMISSION_FILTERS)
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('worker')
+        return next
+      },
+      { replace: true },
+    )
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -467,7 +504,7 @@ export function AdminHomePage() {
                 </p>
               )}
 
-              <div className="admin-panel">
+              <div className="admin-panel" id="submissions">
                 <h3 className="admin-panel__title">Worker submissions</h3>
                 <p className="admin-panel__lead">
                   Review queue: {reviewCounts.queue} · Reviewed:{' '}
@@ -502,14 +539,15 @@ export function AdminHomePage() {
                       <select
                         className="safety-form__control touch-target"
                         value={filters.workerId}
-                        onChange={(e) =>
-                          setFilters((f) => ({
-                            ...f,
-                            workerId: e.target.value,
-                          }))
-                        }
+                        onChange={(e) => setWorkerFilter(e.target.value)}
                       >
                         <option value="">All workers</option>
+                        {filters.workerId &&
+                          !workerOptions.some((w) => w.id === filters.workerId) && (
+                            <option value={filters.workerId}>
+                              Selected worker
+                            </option>
+                          )}
                         {workerOptions.map((worker) => (
                           <option key={worker.id} value={worker.id}>
                             {worker.name}
@@ -595,7 +633,7 @@ export function AdminHomePage() {
                       type="button"
                       className="btn btn--ghost touch-target"
                       disabled={activeFilterCount === 0}
-                      onClick={() => setFilters(EMPTY_SUBMISSION_FILTERS)}
+                      onClick={clearFilters}
                     >
                       <FilterX size={18} strokeWidth={2.5} aria-hidden />
                       Clear filters
@@ -616,7 +654,7 @@ export function AdminHomePage() {
                     <button
                       type="button"
                       className="btn btn--ghost touch-target"
-                      onClick={() => setFilters(EMPTY_SUBMISSION_FILTERS)}
+                      onClick={clearFilters}
                     >
                       <FilterX size={18} strokeWidth={2.5} aria-hidden />
                       Clear filters

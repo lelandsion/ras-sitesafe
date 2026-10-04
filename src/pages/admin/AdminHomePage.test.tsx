@@ -114,4 +114,50 @@ describe('AdminHomePage Worker Submissions navigation', () => {
     expect(siteLink.getAttribute('href')).not.toMatch(/\/preview$/)
     expect(viewLink.getAttribute('href')).not.toMatch(/\/preview$/)
   })
+
+  it('applies worker filter from ?worker= query param', async () => {
+    listAdminSubmissions.mockResolvedValue({
+      data: [
+        makeSubmission({
+          id: 'sub-a',
+          submitted_by: 'framer-1',
+          submitter: { id: 'framer-1', display_name: 'Daniel Ortiz' },
+        }),
+        makeSubmission({
+          id: 'sub-b',
+          submitted_by: 'framer-2',
+          submitter: { id: 'framer-2', display_name: 'Alex Kim' },
+          sites: { id: 'site-2', name: 'Pier 9', address: null },
+          site_id: 'site-2',
+        }),
+      ],
+      error: null,
+    })
+
+    render(
+      <AuthContext.Provider
+        value={makeAuthValue({
+          session: { access_token: 'tok' } as never,
+          profile: makeProfile('admin'),
+          role: 'admin',
+          loading: false,
+        })}
+      >
+        <MemoryRouter initialEntries={['/admin?worker=framer-2']}>
+          <AdminHomePage />
+        </MemoryRouter>
+      </AuthContext.Provider>,
+    )
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('link', { name: /Pier 9/i }),
+      ).toBeInTheDocument()
+    })
+    expect(
+      screen.queryByRole('link', { name: /Harbor Deck/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Worker')).toHaveValue('framer-2')
+    expect(screen.getByText(/Showing 1 of 2/i)).toBeInTheDocument()
+  })
 })

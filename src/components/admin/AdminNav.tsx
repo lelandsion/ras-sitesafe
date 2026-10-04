@@ -20,6 +20,9 @@ export function AdminNav() {
       <NavLink to="/admin/sites" className={linkClass}>
         Sites
       </NavLink>
+      <NavLink to="/admin/workers" className={linkClass}>
+        Workers
+      </NavLink>
     </nav>
   )
 }
