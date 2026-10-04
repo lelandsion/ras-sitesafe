@@ -58,6 +58,29 @@ describe('PhotoUpload', () => {
     expect(input.hasAttribute('capture')).toBe(false)
   })
 
+  it('nests the file input inside the trigger label for iOS taps', () => {
+    render(
+      <PhotoUpload
+        userId="user-1"
+        submissionId="sub-1"
+        photos={[]}
+        onChange={vi.fn()}
+        photoKind="site"
+        triggerLabel="Add site photo"
+      />,
+    )
+
+    const input = document.querySelector(
+      'input[type="file"].photo-upload__input',
+    ) as HTMLInputElement
+    const trigger = input.closest('label.photo-upload__trigger')
+    expect(trigger).toBeTruthy()
+    expect(trigger).toHaveTextContent('Add site photo')
+    // Must not rely on a separate htmlFor → clipped off-button input.
+    expect(input.hasAttribute('id')).toBe(false)
+    expect(trigger!.contains(input)).toBe(true)
+  })
+
   it('auto-creates a draft then uploads on the first select', async () => {
     const user = userEvent.setup()
     const ensureSubmissionId = vi.fn().mockResolvedValue('sub-created')

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Camera, ImagePlus, Trash2 } from 'lucide-react'
 import { PhotoLightbox } from '../ui/PhotoLightbox'
 import {
@@ -102,7 +102,6 @@ export function PhotoUpload({
   triggerLabel = 'Add photos',
   photoKind = 'site',
 }: Props) {
-  const inputId = useId()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   /** Keep latest kind-scoped list for multi-file / race-safe appends. */
@@ -209,24 +208,32 @@ export function PhotoUpload({
 
       {!disabled && (
         <>
-          <input
-            id={inputId}
-            className="photo-upload__input"
-            type="file"
-            accept={PHOTO_FILE_ACCEPT}
-            multiple
-            disabled={pickerDisabled}
-            onChange={(e) => {
-              void onFilesSelected(e.target.files)
-              e.target.value = ''
-            }}
-          />
+          {/*
+            Nest the file input inside the label and stretch it over the
+            button. iOS Safari often ignores label→htmlFor activation when the
+            input is clipped to 1×1 / opacity:0 off-button — the tap never
+            reaches a real file control. Overlay keeps desktop + iPhone
+            first-tap opening camera/library.
+          */}
           <label
-            htmlFor={inputId}
             className={`btn btn--ghost touch-target photo-upload__trigger${busy ? ' is-busy' : ''}${pickerDisabled && !busy ? ' is-disabled' : ''}`}
           >
+            <input
+              className="photo-upload__input"
+              type="file"
+              accept={PHOTO_FILE_ACCEPT}
+              multiple
+              disabled={pickerDisabled}
+              aria-label={busy ? 'Uploading…' : triggerLabel}
+              onChange={(e) => {
+                void onFilesSelected(e.target.files)
+                e.target.value = ''
+              }}
+            />
             <ImagePlus size={20} strokeWidth={2.5} aria-hidden />
-            {busy ? 'Uploading…' : triggerLabel}
+            <span className="photo-upload__trigger-text">
+              {busy ? 'Uploading…' : triggerLabel}
+            </span>
           </label>
           {blockedHint && (
             <p className="photo-upload__hint" role="status">
