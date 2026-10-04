@@ -1,7 +1,7 @@
 # RAS SiteSafe — RLS audit
 
 **Grade: B− (B+ after Part 10 is applied on the live project)**  
-**Audit base:** `main` @ `f8a2b11` · branch `cursor/rls-audit-tests-d61f` @ `748dcb5`  
+**Audit base:** `main` @ `f8a2b11` · branch [`cursor/rls-audit-tests-d61f`](https://github.com/lelandsion/ras-sitesafe/tree/cursor/rls-audit-tests-d61f) (tip below)  
 **Date:** 2026-10-04
 
 ## Summary
