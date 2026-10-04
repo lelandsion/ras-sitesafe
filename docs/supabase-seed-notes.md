@@ -30,17 +30,17 @@ npx supabase db push
 | Sarah Mitchell | admin | `admin@ras-sitesafe-demo.com` | `testpassword` |
 | Daniel Ortiz | framer | `framer@ras-sitesafe-demo.com` | `testpassword` |
 
-User metadata (so `handle_new_user` sets role/name):
+User metadata (display name only — **role in metadata is ignored** after hardening migration `20261004000900`; every new Auth user is provisioned as `framer`):
 
 ```json
-{ "display_name": "Sarah Mitchell", "role": "admin" }
+{ "display_name": "Sarah Mitchell" }
 ```
 
 ```json
-{ "display_name": "Daniel Ortiz", "role": "framer" }
+{ "display_name": "Daniel Ortiz" }
 ```
 
-If roles are wrong after create:
+Promote the admin (and fix names) with SQL after create:
 
 ```sql
 update public.profiles

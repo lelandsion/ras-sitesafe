@@ -161,6 +161,6 @@ npm test          # watch
 npm run test:run  # CI / one-shot
 ```
 
-Vitest covers auth guards, login, homepage smoke, photo validation / `photo_kind`, checklist analytics, filters, period/report stats (incl. appendix on Reviewed rows), PDF structure, CA helpers, Daily Compliance windows, Safety Issues UI smoke.
+Vitest covers auth guards, login, homepage smoke, photo validation / `photo_kind`, checklist analytics, filters, period/report stats (incl. appendix on Reviewed rows), PDF structure, CA helpers, Daily Compliance windows, Safety Issues UI smoke, **RLS policy-intent (static)** + **live RLS** when `.env.local` has demo users (`src/lib/rlsPolicyIntent.test.ts`, `src/lib/rlsLive.test.ts`). See [`docs/rls-audit.md`](./rls-audit.md).
 
-**Gap:** no Playwright live E2E in CI — use this plan against local or Vercel after schema + seed.
+**Gap:** no Playwright live E2E in CI — use this plan against local or Vercel after schema + seed. Live RLS also requires Part 10 hardening SQL applied on the project.
