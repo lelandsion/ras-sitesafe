@@ -1,78 +1,51 @@
 # RAS SiteSafe — RLS audit
 
-**Grade: B− (B+ after Part 10 is applied on the live project)**  
-**Audit base:** `main` @ `f8a2b11` · branch [`cursor/rls-audit-tests-d61f`](https://github.com/lelandsion/ras-sitesafe/tree/cursor/rls-audit-tests-d61f) (tip below)  
-**Date:** 2026-10-04
+**Grade: B− live / A− after Part 10**  
+**Part 10 applied on live DB? NO** — run `supabase/migrations/20261004000900_rls_harden_profiles_submissions.sql` (store **Part 10** in `docs/supabase-manual-sql.md`).  
+**Branch:** [`cursor/rls-audit-tests-d61f`](https://github.com/lelandsion/ras-sitesafe/tree/cursor/rls-audit-tests-d61f) · deeper live pass 2026-10-04  
+**Demo framer role:** restored to `framer` after probes.
 
-## Summary
+## Verdict
 
-Core tenancy is sound: framers only see assigned sites, own submissions/photos/issues/CAs, and admin-only surfaces (`saved_reports`, site CRUD, assignments write, `admin_list_framers`) reject framers. Two **confirmed live holes** on the demo Supabase project required a hardening migration:
+Tenancy is **robust** against framer↔admin and anonymous abuse (sites, assignments, submissions, photos, storage paths, issues/CAs, saved reports, RPC). Two **critical/high holes remain open on the live project** because Part 10 was never applied: role self-promotion and post-submit status rewrite. Ship Part 10, re-run live suite — expect full green.
 
-1. **Privilege escalation** — framer could `UPDATE profiles.role = 'admin'` on their own row.
-2. **Submission tamper** — framer could flip a non-draft submission back to `draft` (and rewrite review fields).
+## Deeper live pass (Vitest `src/lib/rlsLive.test.ts`)
 
-Fixes ship as `supabase/migrations/20261004000900_rls_harden_profiles_submissions.sql` and store **Part 10** in `docs/supabase-manual-sql.md`. **You must run Part 10 in the SQL Editor** (no service-role / CLI token available to this agent). Until then, live Part 10 Vitest assertions fail by design.
-
-## What’s solid
-
-| Area | Verdict |
+| Result | Count |
 | --- | --- |
-| `is_admin` / `current_user_role` | `SECURITY DEFINER` + `search_path = public` — avoids profiles RLS recursion |
-| Sites | Framer SELECT via **active** assignment (`unassigned_at is null`); admin full CRUD |
-| Site assignments | Framer SELECT own; write admin-only |
-| Submissions SELECT | Own or admin (drafts visible to owner + admin — intentional) |
-| Submissions INSERT | Own uid + active assignment (or admin) |
-| Submissions DELETE | Own **draft** or admin |
-| Photos | Join parent submission ownership for select/insert/delete |
-| Safety issues | Own submission; update/delete only while parent is draft |
-| Corrective actions | Admin write; framer SELECT own; Part 9 update + trigger for `ready_for_review` only |
-| Saved reports | Admin `FOR ALL` |
-| Storage `submission-photos` | Private bucket; path prefix `{auth.uid}/…`; admin can read all |
-| `admin_list_framers` | Definer RPC with explicit `is_admin` gate + `REVOKE` from `PUBLIC` |
+| Pass | **15** |
+| Fail (Part 10 only) | **2** |
+| Skip | 1 (no-env branch) |
 
-## Gaps / risks
+### Passed
+- Anonymous: no SELECT leak on all tenancy tables; no INSERT sites/submissions
+- Profiles: framer cannot read/update admin; admin reads framer; `admin_list_framers` allow/deny
+- Sites: active-assignment visibility; no insert; no update on unassigned site (0 rows)
+- Assignments: no write; own history readable; foreign assignments hidden; unassigned-site submit denied
+- Submissions: draft create/update/submit works; **cross-tenant** admin-owned row invisible/unwritable to framer
+- Photos metadata: foreign submission photos hidden; cannot attach to foreign submission
+- Storage: upload to other uid folder denied (RLS); own folder OK; anon download blocked; list other folder empty
+- CA: framer reads own; cannot insert/resolve/rewrite `required_action`; can `ready_for_review`; foreign CA invisible
+- Saved reports: framer denied; admin select OK
 
-| Risk | Severity | Status |
-| --- | --- | --- |
-| Framer self-promote via `profiles` UPDATE | **Critical** | Fixed in migration / Part 10 — **apply on live DB** |
-| Framer rewrite submitted/approved → draft | **High** | Fixed in migration / Part 10 — **apply on live DB** |
-| `handle_new_user` trusted metadata `role` | Medium | Fixed to always insert `framer` (Part 10); promote admins via SQL |
-| Storage path not tied to submission RLS | Low | Owner-folder isolation only; metadata table still tenancy-gated |
-| No second demo framer | Test gap | Cross-user denial inferred from ownership joins; add a second framer for stronger live proof |
-| Photos: no UPDATE policy | Info | Intentional; clients insert/delete |
+### Failed (expected until Part 10)
+1. Framer `profiles.role` → `admin` (self-promote) — **still works on live**
+2. Framer submitted → `draft` flip — **still works on live**
 
-## SQL you must run
+### Coverage gap
+- True **second Auth framer** not creatable (signup domain/rate-limit). Cross-owner isolation covered via **admin-owned** submissions/issues/CAs/photos instead.
 
-In **Supabase → SQL Editor**, run:
+## Residual risks
+1. **Part 10 not applied** — privilege escalation + status tamper (must run SQL)
+2. No second demo framer for peer-to-peer proof
+3. Storage scoped by uid folder only (not submission FK) — acceptable with photos-table RLS
+4. Soft-unassigned assignment **history** still visible to that framer (by design for compliance)
 
-`supabase/migrations/20261004000900_rls_harden_profiles_submissions.sql`
+## SQL to run
+Supabase SQL Editor → paste migration `20261004000900…` / store Part 10 → then:
 
-(or store **Part 10** in `docs/supabase-manual-sql.md`).
-
-Then confirm demo framer is still `framer`:
-
-```sql
-update public.profiles
-set role = 'framer'
-where id = (select id from auth.users where email = 'framer@ras-sitesafe-demo.com')
-  and role <> 'framer';
+```bash
+npm run test:run -- src/lib/rlsLive.test.ts
 ```
 
-## Test results
-
-| Suite | Result | Count |
-| --- | --- | --- |
-| Static policy intent (`rlsPolicyIntent.test.ts`) | **Pass** | 13 |
-| Live RLS (`rlsLive.test.ts`) with `.env.local` + demo users | **2 fail / 6 pass / 1 skip** until Part 10 | 8 + skip branch |
-| Full `npm run test:run` | Expect **fail** until Part 10 applied (live assertions) | — |
-
-Live coverage exercised: role escalate (reverted on detect), site/assignment insert deny, assignment-scoped sites, non-draft status flip (reverted), `saved_reports` deny, issues/CA ownership, `admin_list_framers` deny/allow.
-
-After Part 10: re-run `npm run test:run -- src/lib/rlsLive.test.ts` — both Part 10 cases should pass, then merge is safe.
-
-## Files added
-
-- `supabase/migrations/20261004000900_rls_harden_profiles_submissions.sql`
-- `src/lib/rlsPolicyIntent.ts` + `rlsPolicyIntent.test.ts`
-- `src/lib/rlsLive.test.ts`
-- `docs/rls-audit.md` (this file)
+Expect **0 failures**.
